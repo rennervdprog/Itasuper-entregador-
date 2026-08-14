@@ -1,0 +1,205 @@
+package com.example.data.model
+
+/**
+ * Representa o perfil cadastrado do motoboy de loja do ItaSuper.
+ */
+data class DriverProfile(
+    val id: String,
+    val name: String,
+    val email: String,
+    val phone: String,
+    val vehicleType: String = "Motocicleta 160cc",
+    val vehiclePlate: String = "ITA-9A82",
+    val rating: Double = 4.95,
+    val completedDeliveriesCount: Int = 342,
+    val memberSince: String = "Março de 2024"
+)
+
+/**
+ * Status de vínculo entre o motoboy e a loja parceira ItaSuper.
+ */
+enum class DriverLinkStatus {
+    PENDING,
+    ACCEPTED,
+    REJECTED
+}
+
+/**
+ * Representa uma loja ItaSuper à qual o motoboy pode ser vinculado.
+ */
+data class LinkedStore(
+    val id: String,
+    val name: String,
+    val tradeName: String,
+    val address: String,
+    val neighborhood: String,
+    val city: String,
+    val phone: String,
+    val cnpj: String,
+    val activeOrdersCount: Int = 0
+)
+
+/**
+ * Vínculo de loja que o motoboy possui ou convite pendente.
+ */
+data class StoreDriverLink(
+    val id: String,
+    val store: LinkedStore,
+    val status: DriverLinkStatus,
+    val invitedAt: String,
+    val acceptedAt: String? = null,
+    val tags: List<String> = listOf("Vínculo direto", "Entregas locais", "Horário flexível")
+)
+
+/**
+ * Disponibilidade do entregador para receber pedidos das lojas vinculadas.
+ */
+data class DriverAvailability(
+    val isOnline: Boolean,
+    val statusText: String,
+    val lastChangedAt: Long = System.currentTimeMillis()
+)
+
+/**
+ * Status do ciclo de vida da entrega.
+ */
+enum class OrderDeliveryStatus(val label: String) {
+    PRONTO_PARA_ENTREGA("Pronto p/ sair"),
+    SAIU_ENTREGA("Em entrega"),
+    EM_TRANSITO("Em rota"),
+    FINALIZADO("Concluído")
+}
+
+/**
+ * Informações de contato e telefone do cliente para entrega.
+ */
+data class DriverContact(
+    val name: String,
+    val phone: String,
+    val whatsappAvailable: Boolean = true
+)
+
+/**
+ * Resumo do pagamento do pedido pelo cliente.
+ */
+data class PaymentSummary(
+    val method: String,
+    val amount: Double,
+    val changeFor: Double? = null,
+    val isPaidOnline: Boolean = true
+) {
+    val displayChangeText: String?
+        get() = if (changeFor != null && changeFor > amount) {
+            "Troco para R$ ${String.format("%.2f", changeFor)} (R$ ${String.format("%.2f", changeFor - amount)})"
+        } else null
+}
+
+/**
+ * Item constante no pedido do cliente.
+ */
+data class DeliveryItem(
+    val id: String,
+    val name: String,
+    val quantity: Int,
+    val unitPrice: Double
+)
+
+/**
+ * Pedido de entrega atribuído ou disponível para o motoboy.
+ */
+data class DeliveryOrder(
+    val id: String,
+    val shortCode: String,
+    val store: LinkedStore,
+    val status: OrderDeliveryStatus,
+    val customerName: String,
+    val customerPhone: String,
+    val addressStreet: String,
+    val addressNumber: String,
+    val addressNeighborhood: String,
+    val addressCity: String,
+    val addressComplement: String? = null,
+    val deliveryFee: Double,
+    val driverEarnings: Double,
+    val estimatedDistanceKm: Double,
+    val estimatedTimeMinutes: Int,
+    val items: List<DeliveryItem>,
+    val payment: PaymentSummary,
+    val customerPin: String = "4821",
+    val isPinPreFilledAllowed: Boolean = false,
+    val stopOrder: Int = 1,
+    val notes: String? = null,
+    val acceptedAt: String? = null,
+    val createdAt: String = "Hoje, 14:15",
+    val departedAt: String? = null,
+    val deliveredAt: String? = null
+) {
+    val fullAddress: String
+        get() = "$addressStreet, $addressNumber" +
+                (if (!addressComplement.isNullOrBlank()) " - $addressComplement" else "") +
+                ", $addressNeighborhood - $addressCity"
+
+    val shortAddress: String
+        get() = "$addressStreet, $addressNumber"
+}
+
+/**
+ * Preferência de aplicativo de navegação.
+ */
+enum class NavigationPreference(val displayName: String) {
+    GOOGLE_MAPS("Google Maps"),
+    WAZE("Waze")
+}
+
+/**
+ * Registro de confirmação offline para sincronização posterior.
+ */
+data class OfflineDeliveryConfirmation(
+    val orderId: String,
+    val shortCode: String,
+    val pin: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isSynced: Boolean = false
+)
+
+/**
+ * Entrada no histórico de entregas.
+ */
+data class DriverHistoryEntry(
+    val id: String,
+    val orderShortCode: String,
+    val storeName: String,
+    val dateFormatted: String,
+    val timeFormatted: String,
+    val neighborhood: String,
+    val addressSummary: String,
+    val distanceKm: Double,
+    val timeMinutes: Int,
+    val deliveryFee: Double,
+    val driverEarnings: Double,
+    val statusText: String = "Recebido", // "Recebido", "Confirmar", "Pendente"
+    val isStraightLineEstimate: Boolean = true
+)
+
+/**
+ * Resumo agregado das métricas do histórico.
+ */
+data class DriverHistorySummary(
+    val totalDistanceKm: Double,
+    val totalTimeMinutes: Int,
+    val totalRides: Int,
+    val totalEarnings: Double,
+    val periodFilter: String = "7 dias" // "7 dias", "30 dias", "Tudo"
+)
+
+/**
+ * Chamado de suporte local para simulação.
+ */
+data class SupportTicket(
+    val id: String,
+    val subject: String,
+    val description: String,
+    val category: String,
+    val status: String = "Em análise",
+    val createdAt: String = "Hoje, 15:30"
+)

@@ -1,0 +1,6 @@
+{
+  "name": "ItaSuper Entregador",
+  "description": "Aplicativo exclusivo para o motoboy de loja do ItaSuper gerenciar pedidos, vínculos de lojas e rotas de entrega.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
