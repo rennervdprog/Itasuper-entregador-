@@ -40,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -61,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.model.SupportTicket
+import com.example.ui.components.itaOutlinedFieldColors
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaDivider
@@ -174,13 +174,13 @@ fun SupportScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Atendimento ao Motoboy de Loja",
+                                    text = "Atendimento ao motoboy de loja",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = ItaTextPrimary
                                 )
                                 Text(
-                                    text = "Horário de atendimento: Segunda a Domingo das 07h às 22h",
+                                    text = "Atendimento: todos os dias, das 7h às 22h",
                                     fontSize = 12.sp,
                                     color = ItaTextSecondary
                                 )
@@ -191,7 +191,7 @@ fun SupportScreen(
 
                 item {
                     Text(
-                        text = "Seus Chamados (${tickets.size})",
+                        text = "Seus chamados (${tickets.size})",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary,
@@ -343,7 +343,7 @@ private fun NewSupportTicketDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Novo Chamado",
+                        text = "Novo chamado",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
@@ -372,10 +372,7 @@ private fun NewSupportTicketDialog(
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ItaOrange,
-                            unfocusedBorderColor = ItaBorder
-                        ),
+                        colors = itaOutlinedFieldColors(),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -411,10 +408,7 @@ private fun NewSupportTicketDialog(
                     value = subject,
                     onValueChange = onSubjectChange,
                     placeholder = { Text("Ex: Dúvida no pedido #4920") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ItaOrange,
-                        unfocusedBorderColor = ItaBorder
-                    ),
+                    colors = itaOutlinedFieldColors(),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -435,10 +429,7 @@ private fun NewSupportTicketDialog(
                     placeholder = { Text("Explique o que aconteceu...") },
                     minLines = 3,
                     maxLines = 5,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ItaOrange,
-                        unfocusedBorderColor = ItaBorder
-                    ),
+                    colors = itaOutlinedFieldColors(),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 )

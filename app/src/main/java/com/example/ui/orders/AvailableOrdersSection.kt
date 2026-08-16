@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Lock
@@ -31,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryOrder
 import com.example.ui.theme.ItaBorder
+import com.example.ui.theme.ItaDisabledAction
 import com.example.ui.theme.ItaDivider
 import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaGreenLight
@@ -68,7 +67,6 @@ fun AvailableOrdersSection(
     hasActiveRoute: Boolean,
     onAcceptOrder: (String) -> Unit,
     onAcceptAll: () -> Unit,
-    onRejectOrder: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -80,7 +78,7 @@ fun AvailableOrdersSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Pedidos Disponíveis",
+                    text = "Pedidos disponíveis",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = ItaTextPrimary
@@ -116,7 +114,7 @@ fun AvailableOrdersSection(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Aceitar todos (${orders.size})",
+                        text = "Aceitar rota (${orders.size})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -157,8 +155,7 @@ fun AvailableOrdersSection(
                 AvailableOrderCard(
                     order = order,
                     isDisabled = hasActiveRoute,
-                    onAccept = { onAcceptOrder(order.id) },
-                    onReject = { onRejectOrder(order.id) }
+                    onAccept = { onAcceptOrder(order.id) }
                 )
             }
         }
@@ -169,8 +166,7 @@ fun AvailableOrdersSection(
 fun AvailableOrderCard(
     order: DeliveryOrder,
     isDisabled: Boolean,
-    onAccept: () -> Unit,
-    onReject: () -> Unit
+    onAccept: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -204,21 +200,6 @@ fun AvailableOrderCard(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "R$ ${String.format("%.2f", order.driverEarnings)}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ItaGreenDark
-                    )
-                    Text(
-                        text = "SUA TAXA",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
-                        color = ItaSlate400
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -298,9 +279,13 @@ fun AvailableOrderCard(
                     )
                 }
 
-                // Distance estimate
+                // Distância calculada somente com coordenadas reais salvas no pedido.
                 Text(
-                    text = "• ~${order.estimatedDistanceKm} km",
+                    text = if (order.estimatedDistanceKm > 0.0) {
+                        "• ~${String.format("%.1f", order.estimatedDistanceKm)} km"
+                    } else {
+                        "• Localização não informada"
+                    },
                     fontSize = 11.sp,
                     color = ItaSlate400
                 )
@@ -310,7 +295,7 @@ fun AvailableOrderCard(
             order.payment.displayChangeText?.let { changeText ->
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "💵 $changeText",
+                    text = "Troco: $changeText",
                     fontSize = 11.sp,
                     color = Color(0xFFB45309),
                     fontWeight = FontWeight.SemiBold
@@ -319,50 +304,34 @@ fun AvailableOrderCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Actions: Main CTA "Aceitar entrega" + Secondary "Recusar este pedido"
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // O pedido permanece disponível até ser aceito por este motoboy ou por outro elegível da mesma loja.
+            Button(
+                onClick = onAccept,
+                enabled = !isDisabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ItaOrange,
+                    disabledContainerColor = ItaDisabledAction,
+                    disabledContentColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp)
+                    .testTag("btn_accept_order_${order.id}")
             ) {
-                TextButton(
-                    onClick = onReject,
-                    enabled = !isDisabled,
-                    modifier = Modifier.testTag("btn_reject_order_${order.id}")
-                ) {
-                    Text(
-                        text = "Recusar",
-                        fontSize = 12.sp,
-                        color = ItaSlate400
-                    )
-                }
-
-                Button(
-                    onClick = onAccept,
-                    enabled = !isDisabled,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ItaOrange,
-                        disabledContainerColor = ItaSlate300
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .height(42.dp)
-                        .testTag("btn_accept_order_${order.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isDisabled) "Finalize a rota atual" else "Aceitar entrega",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isDisabled) "Finalize a rota atual" else "Aceitar entrega",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }

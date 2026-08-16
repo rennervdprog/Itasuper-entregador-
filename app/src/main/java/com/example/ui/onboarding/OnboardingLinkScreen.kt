@@ -156,7 +156,7 @@ fun OnboardingLinkScreen(
             if (pendingInvites.isNotEmpty()) {
                 // Estado "Convite recebido"
                 Text(
-                    text = "Convites de Lojas",
+                    text = "Convites de lojas",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = ItaSlate900
@@ -190,31 +190,6 @@ fun OnboardingLinkScreen(
                 )
             }
 
-            // Quick State Tester Footer
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = { viewModel.simulateResetToAguardando() },
-                        modifier = Modifier.testTag("btn_simulate_waiting")
-                    ) {
-                        Text("Modo: Sem Vínculo", fontSize = 11.sp, color = ItaSlate500)
-                    }
-                    TextButton(
-                        onClick = { viewModel.simulateAddInvite() },
-                        modifier = Modifier.testTag("btn_simulate_invite")
-                    ) {
-                        Text("Modo: Receber Convite", fontSize = 11.sp, color = ItaOrange)
-                    }
-                }
-            }
         }
     }
 }
@@ -250,7 +225,7 @@ private fun WaitingForLinkContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Aguardando Vínculo com Loja",
+            text = "Aguardando vínculo com loja",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = ItaSlate900
@@ -259,7 +234,7 @@ private fun WaitingForLinkContent(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Peça ao dono da loja para adicionar seu e-mail como motoboy no painel dele.",
+            text = "Peça ao lojista para adicionar seu e-mail como motoboy no painel da loja.",
             fontSize = 13.sp,
             color = ItaSlate500,
             lineHeight = 18.sp,
@@ -410,7 +385,7 @@ private fun StoreInviteCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "CONVITE DE LOJA",
+                        text = "Convite de loja",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,

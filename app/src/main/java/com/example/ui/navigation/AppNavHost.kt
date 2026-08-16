@@ -53,8 +53,7 @@ fun AppNavHost(
             val authViewModel: AuthViewModel = viewModel()
             LoginScreen(
                 viewModel = authViewModel,
-                onLoginSuccess = {
-                    val hasLink = authViewModel.hasAcceptedLink.value
+                onLoginSuccess = { hasLink ->
                     if (hasLink) {
                         navController.navigate(Screen.Dashboard.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }

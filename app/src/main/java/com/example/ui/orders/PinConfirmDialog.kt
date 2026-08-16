@@ -41,6 +41,7 @@ import com.example.data.model.DeliveryOrder
 import com.example.ui.components.PinInputBoxes
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaDivider
+import com.example.ui.theme.ItaDisabledAction
 import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaOrangeLight
@@ -104,7 +105,7 @@ fun PinConfirmDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Confirmar Entrega",
+                                text = "Confirmar entrega",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ItaSlate900
@@ -171,7 +172,6 @@ fun PinConfirmDialog(
                 PinInputBoxes(
                     pin = enteredPin,
                     onPinChange = onPinChange,
-                    expectedPin = order.customerPin,
                     onConfirm = onConfirm
                 )
 
@@ -209,7 +209,8 @@ fun PinConfirmDialog(
                         enabled = enteredPin.length == 4 && !isLoading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ItaOrange,
-                            disabledContainerColor = ItaSlate300
+                            disabledContainerColor = ItaDisabledAction,
+                            disabledContentColor = Color.White
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier

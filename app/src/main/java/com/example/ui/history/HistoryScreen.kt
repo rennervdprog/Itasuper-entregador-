@@ -124,14 +124,6 @@ fun HistoryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         HistoryMetricCard(
-                            title = "Ganhos",
-                            value = "R$ ${String.format("%.2f", summary.totalEarnings)}",
-                            icon = Icons.Default.AttachMoney,
-                            iconColor = ItaGreenDark,
-                            modifier = Modifier.weight(1f),
-                            testTag = "metric_history_earnings"
-                        )
-                        HistoryMetricCard(
                             title = "Corridas",
                             value = "${summary.totalRides} entregas",
                             icon = Icons.Default.DirectionsBike,
@@ -141,25 +133,14 @@ fun HistoryScreen(
                         )
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    if (summary.totalDistanceKm > 0.0) {
                         HistoryMetricCard(
                             title = "Distância Total",
                             value = "${String.format("%.1f", summary.totalDistanceKm)} km",
                             icon = Icons.Default.Timeline,
                             iconColor = Color(0xFF3B82F6),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             testTag = "metric_history_distance"
-                        )
-                        HistoryMetricCard(
-                            title = "Tempo Total",
-                            value = "${summary.totalTimeMinutes} min",
-                            icon = Icons.Default.Schedule,
-                            iconColor = Color(0xFF8B5CF6),
-                            modifier = Modifier.weight(1f),
-                            testTag = "metric_history_time"
                         )
                     }
                 }
@@ -182,7 +163,7 @@ fun HistoryScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Distância demonstrativa estimada em linha reta.",
+                        text = "A distância é estimada em linha reta com base nas coordenadas disponíveis.",
                         fontSize = 11.sp,
                         color = Color(0xFF64748B)
                     )
@@ -192,7 +173,7 @@ fun HistoryScreen(
             // History Header
             item {
                 Text(
-                    text = "Registros de Corridas",
+                    text = "Histórico de entregas",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = ItaTextPrimary
@@ -200,8 +181,26 @@ fun HistoryScreen(
             }
 
             // History entries
-            items(entries, key = { it.id }) { entry ->
-                HistoryEntryCard(entry = entry)
+            if (entries.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+                    ) {
+                        Text(
+                            text = "Nenhuma entrega concluída neste período. Altere o filtro para consultar outro intervalo.",
+                            modifier = Modifier.padding(18.dp),
+                            color = ItaTextSecondary,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            } else {
+                items(entries, key = { it.id }) { entry ->
+                    HistoryEntryCard(entry = entry)
+                }
             }
 
             item {
@@ -302,7 +301,7 @@ private fun HistoryEntryCard(
                     modifier = Modifier
                         .background(
                             when (entry.statusText) {
-                                "Recebido" -> ItaGreenLight
+                                "Recebido", "Concluída" -> ItaGreenLight
                                 "Confirmar" -> ItaStatusPendingBg
                                 else -> Color(0xFFE2E8F0)
                             },
@@ -315,7 +314,7 @@ private fun HistoryEntryCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = when (entry.statusText) {
-                            "Recebido" -> ItaGreenDark
+                            "Recebido", "Concluída" -> ItaGreenDark
                             "Confirmar" -> ItaStatusPending
                             else -> Color(0xFF475569)
                         }
@@ -342,23 +341,11 @@ private fun HistoryEntryCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Stats & Earnings Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (entry.distanceKm > 0.0) {
                 Text(
-                    text = "${entry.distanceKm} km · ${entry.timeMinutes} min · Taxa: R$ ${String.format("%.2f", entry.deliveryFee)}",
+                    text = "${String.format("%.1f", entry.distanceKm)} km em linha reta",
                     fontSize = 11.sp,
                     color = ItaTextTertiary
-                )
-
-                Text(
-                    text = "+ R$ ${String.format("%.2f", entry.driverEarnings)}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ItaGreenDark
                 )
             }
         }

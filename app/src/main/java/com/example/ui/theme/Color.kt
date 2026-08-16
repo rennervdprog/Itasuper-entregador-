@@ -18,10 +18,20 @@ val ItaGreenLight = Color(0xFFD1FAE5)
 val ItaBackground = Color(0xFFFAFAFA)
 val ItaSurface = Color(0xFFFFFFFF)
 val ItaDivider = Color(0xFFE8E8E8)
-val ItaBorder = Color(0xFFE2E8F0)
+val ItaBorder = Color(0xFFCBD5E1)
 val ItaTextPrimary = Color(0xFF0F172A)
-val ItaTextSecondary = Color(0xFF64748B)
-val ItaTextTertiary = Color(0xFF94A3B8)
+val ItaTextSecondary = Color(0xFF475569)
+val ItaTextTertiary = Color(0xFF64748B)
+
+// Campos de entrada: contraste reforçado para telas claras e ambientes externos.
+val ItaFieldBackground = Color(0xFFF8FAFC)
+val ItaFieldBorder = Color(0xFF94A3B8)
+val ItaFieldText = Color(0xFF0F172A)
+val ItaFieldPlaceholder = Color(0xFF475569)
+val ItaFieldIcon = Color(0xFF475569)
+val ItaFieldDisabledBackground = Color(0xFFE2E8F0)
+val ItaFieldDisabledText = Color(0xFF475569)
+val ItaDisabledAction = Color(0xFF64748B)
 
 // Slate Palette
 val ItaSlate900 = Color(0xFF0F172A)

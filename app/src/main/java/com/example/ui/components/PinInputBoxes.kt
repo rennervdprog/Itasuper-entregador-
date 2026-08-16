@@ -43,7 +43,6 @@ import com.example.ui.theme.ItaTextSecondary
 fun PinInputBoxes(
     pin: String,
     onPinChange: (String) -> Unit,
-    expectedPin: String = "4821",
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -106,22 +105,5 @@ fun PinInputBoxes(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Demo autofill shortcut
-        TextButton(
-            onClick = {
-                onPinChange(expectedPin)
-                onConfirm()
-            },
-            modifier = Modifier.testTag("btn_autofill_pin")
-        ) {
-            Text(
-                text = "⚡ Preencher PIN demo ($expectedPin)",
-                color = ItaOrange,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
     }
 }

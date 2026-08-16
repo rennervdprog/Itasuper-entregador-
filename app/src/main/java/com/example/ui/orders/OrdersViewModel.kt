@@ -30,7 +30,6 @@ data class OrdersUiState(
     val enteredPin: String = "",
     val pinErrorMessage: String? = null,
     val feedbackMessage: String? = null,
-    val simulatedNavToastMessage: String? = null,
     val isCompletingDelivery: Boolean = false
 )
 
@@ -50,14 +49,14 @@ class OrdersViewModel(
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            DriverProfile("driver_01", "Carlos Eduardo", "carlos.motoboy@itasuper.com.br", "(37) 99842-7711")
+            DriverProfile(id = "", name = "Entregador", email = "", phone = "")
         )
 
     val availability: StateFlow<DriverAvailability> = availabilityRepository.getAvailability()
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            DriverAvailability(true, "Recebendo pedidos · toque para pausar")
+            DriverAvailability(false, "Você está Offline")
         )
 
     val linkedStores: StateFlow<List<StoreDriverLink>> = linkRepository.getLinks()
@@ -70,7 +69,7 @@ class OrdersViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val todayCompletedCount: StateFlow<Int> = ordersRepository.getTodayCompletedCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 12)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val isOptimizedRoute: StateFlow<Boolean> = locationRepository.getOptimizedRouteEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -118,7 +117,7 @@ class OrdersViewModel(
         viewModelScope.launch {
             val result = ordersRepository.acceptOrder(orderId)
             result.onSuccess {
-                _uiState.value = _uiState.value.copy(feedbackMessage = "Pedido aceito e adicionado à rota.")
+                _uiState.value = _uiState.value.copy(feedbackMessage = "Pedido aceito. Inicie a rota quando estiver pronto para sair.")
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(feedbackMessage = error.message)
             }
@@ -135,31 +134,42 @@ class OrdersViewModel(
         viewModelScope.launch {
             val result = ordersRepository.acceptAllOrders(orderIds)
             result.onSuccess {
-                _uiState.value = _uiState.value.copy(feedbackMessage = "${orderIds.size} pedidos aceitos para a rota.")
+                _uiState.value = _uiState.value.copy(feedbackMessage = "${orderIds.size} pedidos aceitos. Inicie a rota quando estiver pronto para sair.")
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(feedbackMessage = error.message)
             }
         }
     }
 
-    fun rejectOrder(orderId: String) {
-        viewModelScope.launch {
-            ordersRepository.rejectOrder(orderId)
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Pedido recusado localmente.")
-        }
-    }
-
     fun dispatchOrder(orderId: String) {
         viewModelScope.launch {
-            ordersRepository.dispatchOrder(orderId)
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Status atualizado: Saiu para entrega.")
+            runCatching { ordersRepository.dispatchOrder(orderId) }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = "Rota iniciada: pedidos em saída para entrega."
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = error.message ?: "Não foi possível iniciar a rota."
+                    )
+                }
         }
     }
 
     fun dispatchAllReady() {
         viewModelScope.launch {
-            ordersRepository.dispatchAllReadyOrders()
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Todos os pedidos saíram para entrega.")
+            runCatching { ordersRepository.dispatchAllReadyOrders() }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = "Todos os pedidos da rota saíram para entrega."
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = error.message ?: "Não foi possível iniciar a rota."
+                    )
+                }
         }
     }
 
@@ -205,29 +215,27 @@ class OrdersViewModel(
         }
     }
 
-    fun simulateExternalNavigation(appName: String, address: String) {
+    fun reportExternalActionFailure(message: String?) {
         _uiState.value = _uiState.value.copy(
-            simulatedNavToastMessage = "Navegação simulada: Abrindo destino no $appName ($address)"
-        )
-    }
-
-    fun simulateContactAction(type: String, contact: String) {
-        _uiState.value = _uiState.value.copy(
-            simulatedNavToastMessage = "Ação simulada: Abrindo conversa no $type com $contact"
+            feedbackMessage = message ?: "Não foi possível abrir o aplicativo solicitado."
         )
     }
 
     fun clearFeedback() {
-        _uiState.value = _uiState.value.copy(
-            feedbackMessage = null,
-            simulatedNavToastMessage = null
-        )
+        _uiState.value = _uiState.value.copy(feedbackMessage = null)
     }
 
-    fun resetDemoData() {
+    fun refreshOrders() {
         viewModelScope.launch {
-            ordersRepository.resetDemoOrders()
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Dados de demonstração restaurados.")
+            runCatching { ordersRepository.refreshOrders() }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(feedbackMessage = "Pedidos atualizados.")
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = error.message ?: "Não foi possível atualizar os pedidos."
+                    )
+                }
         }
     }
 }

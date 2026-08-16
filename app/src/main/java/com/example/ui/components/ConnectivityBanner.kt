@@ -57,7 +57,7 @@ fun ConnectivityBanner(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Sinal de dados estável · Itaúna / MG",
+                    text = "Sinal de dados estável",
                     fontSize = 11.sp,
                     color = Color(0xFF475569),
                     fontWeight = FontWeight.Medium

@@ -58,16 +58,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DriverLinkStatus
+import com.example.data.model.NavigationPreference
 import com.example.ui.components.ConnectivityBanner
 import com.example.ui.components.MetricsRow
 import com.example.ui.components.OnlineHeroToggle
 import com.example.ui.history.HistoryScreen
+import com.example.platform.DriverExternalActions
 import com.example.ui.history.HistoryViewModel
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
@@ -91,6 +94,7 @@ fun OrdersScreen(
     historyViewModel: HistoryViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val profile by viewModel.profile.collectAsState()
     val availability by viewModel.availability.collectAsState()
@@ -110,8 +114,8 @@ fun OrdersScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.feedbackMessage, uiState.simulatedNavToastMessage) {
-        val message = uiState.feedbackMessage ?: uiState.simulatedNavToastMessage
+    LaunchedEffect(uiState.feedbackMessage) {
+        val message = uiState.feedbackMessage
         if (message != null) {
             snackbarHostState.showSnackbar(message)
             viewModel.clearFeedback()
@@ -130,7 +134,7 @@ fun OrdersScreen(
                 TopHeader(
                     driverName = profile.name,
                     storesCount = acceptedStores.size,
-                    onResetDemo = { viewModel.resetDemoData() }
+                    onRefresh = { viewModel.refreshOrders() }
                 )
 
                 // Segmented Switch: Entregas vs Histórico
@@ -233,8 +237,23 @@ fun OrdersScreen(
                                 onDispatchOrder = { viewModel.dispatchOrder(it) },
                                 onDispatchAll = { viewModel.dispatchAllReady() },
                                 onOpenPinConfirm = { viewModel.openPinConfirmDialog(it) },
-                                onSimulateNav = { app, addr -> viewModel.simulateExternalNavigation(app, addr) },
-                                onSimulateContact = { type, num -> viewModel.simulateContactAction(type, num) }
+                                onOpenNavigation = { preference, order ->
+                                    DriverExternalActions.openNavigation(
+                                        context = context,
+                                        preference = preference,
+                                        destination = order.fullAddress,
+                                        latitude = order.destinationLatitude,
+                                        longitude = order.destinationLongitude
+                                    ).onFailure { viewModel.reportExternalActionFailure(it.message) }
+                                },
+                                onOpenContact = { type, num ->
+                                    val action = if (type == "WhatsApp") {
+                                        DriverExternalActions.openWhatsApp(context, num)
+                                    } else {
+                                        DriverExternalActions.openDialer(context, num)
+                                    }
+                                    action.onFailure { viewModel.reportExternalActionFailure(it.message) }
+                                }
                             )
                         }
 
@@ -245,12 +264,11 @@ fun OrdersScreen(
                                     orders = filteredAvailableOrders,
                                     hasActiveRoute = activeRouteOrders.isNotEmpty(),
                                     onAcceptOrder = { viewModel.acceptOrder(it) },
-                                    onAcceptAll = { viewModel.acceptAllAvailable() },
-                                    onRejectOrder = { viewModel.rejectOrder(it) }
+                                    onAcceptAll = { viewModel.acceptAllAvailable() }
                                 )
                             } else if (activeRouteOrders.isEmpty()) {
                                 // Online and empty
-                                OnlineEmptyState(onRefresh = { viewModel.resetDemoData() })
+                                OnlineEmptyState(onRefresh = { viewModel.refreshOrders() })
                             }
                         } else if (activeRouteOrders.isEmpty()) {
                             // Offline empty state
@@ -290,7 +308,7 @@ fun OrdersScreen(
 private fun TopHeader(
     driverName: String,
     storesCount: Int,
-    onResetDemo: () -> Unit
+    onRefresh: () -> Unit
 ) {
     val initials = driverName.split(" ")
         .filter { it.isNotBlank() }
@@ -312,7 +330,7 @@ private fun TopHeader(
         ) {
             Column {
                 Text(
-                    text = "ITASUPER ENTREGADOR",
+                    text = "ItaSuper Entregador",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.2.sp,
@@ -329,14 +347,14 @@ private fun TopHeader(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
-                    onClick = onResetDemo,
+                    onClick = onRefresh,
                     modifier = Modifier
                         .size(36.dp)
-                        .testTag("btn_reset_demo_data")
+                        .testTag("btn_refresh_orders")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Restaurar pedidos demo",
+                        contentDescription = "Atualizar pedidos",
                         tint = ItaSlate400,
                         modifier = Modifier.size(18.dp)
                     )
@@ -467,14 +485,14 @@ private fun OptimizedRouteToggleCard(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Rota otimizada de entrega",
+                        text = "Rotas organizadas para entrega",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
                     Text(
                         text = if (activeCount > 0)
-                            "Estimativa demo: ${String.format("%.1f", totalKm)} km · ~$totalMinutes min"
+                            "Estimativa: ${String.format("%.1f", totalKm)} km · ~$totalMinutes min"
                         else
                             "Ordenação sequencial inteligente por bairros",
                         fontSize = 11.sp,
@@ -580,7 +598,7 @@ private fun OnlineEmptyState(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Assim que as lojas parceiras expedirem pedidos, eles surgirão automaticamente aqui.",
+            text = "Quando uma loja parceira liberar um pedido, ele aparecerá aqui automaticamente.",
             fontSize = 13.sp,
             color = ItaTextSecondary,
             textAlign = TextAlign.Center,
@@ -589,7 +607,7 @@ private fun OnlineEmptyState(
         Spacer(modifier = Modifier.height(16.dp))
         TextButton(
             onClick = onRefresh,
-            modifier = Modifier.testTag("btn_reload_demo_orders")
+            modifier = Modifier.testTag("btn_refresh_empty_orders")
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
@@ -598,7 +616,7 @@ private fun OnlineEmptyState(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Carregar novos pedidos demo", color = ItaOrange, fontWeight = FontWeight.SemiBold)
+            Text("Atualizar pedidos", color = ItaOrange, fontWeight = FontWeight.SemiBold)
         }
     }
 }

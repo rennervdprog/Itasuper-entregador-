@@ -36,7 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.itaOutlinedFieldColors
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaOrange
@@ -75,7 +75,7 @@ import com.example.ui.theme.ItaTextTertiary
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (hasAcceptedLink: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -129,7 +129,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Acesso exclusivo para motoboy de loja",
+                    text = "Acesso exclusivo para motoboys de lojas parceiras",
                     fontSize = 14.sp,
                     color = ItaSlate500
                 )
@@ -145,7 +145,7 @@ fun LoginScreen(
                         Icon(
                             imageVector = Icons.Default.Email,
                             contentDescription = null,
-                            tint = ItaSlate400
+                            tint = com.example.ui.theme.ItaFieldIcon
                         )
                     },
                     singleLine = true,
@@ -153,13 +153,7 @@ fun LoginScreen(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
                     ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = ItaSurface,
-                        unfocusedContainerColor = ItaSurface,
-                        focusedBorderColor = ItaOrange,
-                        unfocusedBorderColor = ItaBorder,
-                        focusedLabelColor = ItaOrange
-                    ),
+                    colors = itaOutlinedFieldColors(),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -177,7 +171,7 @@ fun LoginScreen(
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = ItaSlate400
+                            tint = com.example.ui.theme.ItaFieldIcon
                         )
                     },
                     trailingIcon = {
@@ -188,7 +182,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = if (passwordVisible) "Ocultar senha" else "Mostrar senha",
-                                tint = ItaSlate400
+                                tint = com.example.ui.theme.ItaFieldIcon
                             )
                         }
                     },
@@ -201,13 +195,7 @@ fun LoginScreen(
                     keyboardActions = KeyboardActions(
                         onDone = { viewModel.login(onLoginSuccess) }
                     ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = ItaSurface,
-                        unfocusedContainerColor = ItaSurface,
-                        focusedBorderColor = ItaOrange,
-                        unfocusedBorderColor = ItaBorder,
-                        focusedLabelColor = ItaOrange
-                    ),
+                    colors = itaOutlinedFieldColors(),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -252,7 +240,7 @@ fun LoginScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Entrar no App",
+                                text = "Entrar",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

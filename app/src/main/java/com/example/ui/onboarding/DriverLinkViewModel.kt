@@ -2,6 +2,7 @@ package com.example.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.example.data.fake.AppContainer
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.DriverProfile
@@ -13,7 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class OnboardingUiState(
@@ -21,6 +24,7 @@ data class OnboardingUiState(
     val feedbackMessage: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DriverLinkViewModel(
     private val linkRepository: DriverLinkRepository = AppContainer.linkRepository,
     private val profileRepository: DriverProfileRepository = AppContainer.profileRepository,
@@ -30,19 +34,17 @@ class DriverLinkViewModel(
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
+    private val inviteRefreshVersion = MutableStateFlow(0)
+
     val profile: StateFlow<DriverProfile> = profileRepository.getProfile()
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            DriverProfile(
-                id = "driver_01",
-                name = "Carlos Eduardo Souza",
-                email = "carlos.motoboy@itasuper.com.br",
-                phone = "(37) 99842-7711"
-            )
+            DriverProfile(id = "", name = "Entregador", email = "", phone = "")
         )
 
-    val links: StateFlow<List<StoreDriverLink>> = linkRepository.getLinks()
+    val links: StateFlow<List<StoreDriverLink>> = inviteRefreshVersion
+        .flatMapLatest { linkRepository.getLinks() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun acceptInvite(linkId: String, onAccepted: () -> Unit) {
@@ -63,24 +65,20 @@ class DriverLinkViewModel(
     fun checkNewInvites() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCheckingInvites = true, feedbackMessage = null)
-            kotlinx.coroutines.delay(600) // Simulação rápida de feedback visual
-            linkRepository.checkNewInvites()
-            _uiState.value = _uiState.value.copy(
-                isCheckingInvites = false,
-                feedbackMessage = "Convites atualizados."
-            )
-        }
-    }
-
-    fun simulateResetToAguardando() {
-        viewModelScope.launch {
-            linkRepository.resetToAguardandoVinculo()
-        }
-    }
-
-    fun simulateAddInvite() {
-        viewModelScope.launch {
-            linkRepository.simulateAddDemoInvite()
+            runCatching { linkRepository.checkNewInvites() }
+                .onSuccess {
+                    inviteRefreshVersion.update { it + 1 }
+                    _uiState.value = _uiState.value.copy(
+                        isCheckingInvites = false,
+                        feedbackMessage = "Convites atualizados."
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isCheckingInvites = false,
+                        feedbackMessage = error.message ?: "Não foi possível atualizar os convites."
+                    )
+                }
         }
     }
 

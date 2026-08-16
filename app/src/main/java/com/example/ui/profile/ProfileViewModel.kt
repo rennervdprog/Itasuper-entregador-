@@ -27,12 +27,10 @@ class ProfileViewModel(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
             DriverProfile(
-                id = "driver_01",
-                name = "Carlos Eduardo Souza",
-                email = "carlos.motoboy@itasuper.com.br",
-                phone = "(37) 99842-7711",
-                rating = 4.96,
-                completedDeliveriesCount = 348
+                id = "",
+                name = "Entregador",
+                email = "",
+                phone = ""
             )
         )
 

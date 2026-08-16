@@ -42,12 +42,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.widget.Toast
 import com.example.data.model.DriverLinkStatus
+import com.example.data.model.IncomingOrderAlert
 import com.example.data.model.NavigationPreference
+import com.example.platform.IncomingOrderOverlay
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaDivider
@@ -71,6 +78,7 @@ fun ProfileScreen(
     val profile by viewModel.profile.collectAsState()
     val linkedStores by viewModel.linkedStores.collectAsState()
     val navPreference by viewModel.navPreference.collectAsState()
+    val context = LocalContext.current
 
     val acceptedStores = linkedStores.filter { it.status == DriverLinkStatus.ACCEPTED }
     val scrollState = rememberScrollState()
@@ -142,7 +150,7 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Entregador Oficial ItaSuper",
+                            text = "Entregador oficial ItaSuper",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = ItaGreenDark
@@ -153,49 +161,12 @@ fun ProfileScreen(
                     HorizontalDivider(color = ItaDivider)
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Stats row: Rating, Deliveries, Member Since
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = Color(0xFFF59E0B),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text(
-                                    text = profile.rating.toString(),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ItaTextPrimary
-                                )
-                            }
-                            Text("Avaliação", fontSize = 11.sp, color = ItaTextSecondary)
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = profile.completedDeliveriesCount.toString(),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ItaTextPrimary
-                            )
-                            Text("Corridas", fontSize = 11.sp, color = ItaTextSecondary)
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = profile.memberSince,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ItaTextPrimary
-                            )
-                            Text("No ItaSuper", fontSize = 11.sp, color = ItaTextSecondary)
-                        }
+                    if (profile.memberSince.isNotBlank()) {
+                        Text(
+                            text = "Cadastro em ${profile.memberSince}",
+                            fontSize = 12.sp,
+                            color = ItaTextSecondary
+                        )
                     }
                 }
             }
@@ -209,18 +180,34 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Dados Cadastrais",
+                        text = "Dados cadastrais",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    ProfileInfoRow(icon = Icons.Default.Email, label = "E-mail", value = profile.email)
+                    ProfileInfoRow(
+                        icon = Icons.Default.Email,
+                        label = "E-mail",
+                        value = profile.email.ifBlank { "Não informado" }
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
-                    ProfileInfoRow(icon = Icons.Default.Phone, label = "Telefone", value = profile.phone)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    ProfileInfoRow(icon = Icons.Default.TwoWheeler, label = "Veículo", value = "${profile.vehicleType} · ${profile.vehiclePlate}")
+                    ProfileInfoRow(
+                        icon = Icons.Default.Phone,
+                        label = "Telefone",
+                        value = profile.phone.ifBlank { "Não informado" }
+                    )
+                    if (profile.vehicleType.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        ProfileInfoRow(
+                            icon = Icons.Default.TwoWheeler,
+                            label = "Veículo",
+                            value = listOf(profile.vehicleType, profile.vehiclePlate)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" · ")
+                        )
+                    }
                 }
             }
 
@@ -238,7 +225,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Lojas Vinculadas (${acceptedStores.size})",
+                            text = "Lojas vinculadas (${acceptedStores.size})",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = ItaTextPrimary
@@ -300,7 +287,7 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "App de Navegação Padrão",
+                        text = "Navegação padrão",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
@@ -327,6 +314,81 @@ fun ProfileScreen(
                 }
             }
 
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Alerta visual de nova entrega",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ItaTextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (IncomingOrderOverlay.isAllowed(context)) {
+                            "Sobreposição autorizada. Use o teste para confirmar a chamada visual."
+                        } else {
+                            "Sobreposição ainda não autorizada neste aparelho."
+                        },
+                        fontSize = 13.sp,
+                        color = ItaTextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            val shown = IncomingOrderOverlay.show(
+                                context = context,
+                                orderId = "overlay-test",
+                                storeName = "Loja de teste ItaSuper",
+                                neighborhood = "Painel visual",
+                                shortCode = "#11F08E4A",
+                                alert = IncomingOrderAlert(
+                                    orderId = "overlay-test",
+                                    shortCode = "#11F08E4A",
+                                    storeName = "Loja de teste ItaSuper",
+                                    pickupAddress = "Avenida Brasil, 524 · Centro · Araruama",
+                                    destinationAddress = "Rua Professor Nunes Martins · Ponte dos Leites",
+                                    neighborhood = "Ponte dos Leites",
+                                    itemCount = 3,
+                                    paymentMethod = "Pix",
+                                    totalLabel = "R$ 42,90"
+                                )
+                            )
+                            if (!shown) {
+                                Toast.makeText(context, IncomingOrderOverlay.lastDiagnostic(), Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Testar painel visual", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Abrir permissão do Android",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                )
+                            }
+                            .padding(vertical = 8.dp),
+                        color = ItaOrange,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
             // Logout Action
             Button(
                 onClick = { viewModel.logout(onLogout) },
@@ -348,7 +410,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Sair da Conta",
+                    text = "Sair da conta",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = ItaStatusDanger

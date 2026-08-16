@@ -29,8 +29,6 @@ interface DriverLinkRepository {
     suspend fun acceptInvite(linkId: String)
     suspend fun rejectInvite(linkId: String)
     suspend fun checkNewInvites()
-    suspend fun simulateAddDemoInvite()
-    suspend fun resetToAguardandoVinculo()
 }
 
 interface DriverAvailabilityRepository {
@@ -44,13 +42,12 @@ interface DriverOrdersRepository {
     fun getTodayCompletedCount(): Flow<Int>
     suspend fun acceptOrder(orderId: String): Result<Unit>
     suspend fun acceptAllOrders(orderIds: List<String>): Result<Unit>
-    suspend fun rejectOrder(orderId: String)
     suspend fun dispatchOrder(orderId: String)
     suspend fun dispatchAllReadyOrders()
     suspend fun completeDelivery(orderId: String, pin: String): Result<Unit>
     fun getOfflineConfirmations(): Flow<List<OfflineDeliveryConfirmation>>
     suspend fun clearOfflineConfirmations()
-    suspend fun resetDemoOrders()
+    suspend fun refreshOrders()
 }
 
 interface DriverHistoryRepository {

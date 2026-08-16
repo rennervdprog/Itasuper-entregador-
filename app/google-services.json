@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "344752263518",
+    "project_id": "itafood-c71a1",
+    "storage_bucket": "itafood-c71a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:344752263518:android:ed2b88af5eb26878d37fcf",
+        "android_client_info": {
+          "package_name": "app.itasuper.cliente"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgfgPRr5bDKEvTTVPFL6dCkFJwXtguqak"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:344752263518:android:1df9b5f0844e46fad37fcf",
+        "android_client_info": {
+          "package_name": "app.itasuper.parceiro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgfgPRr5bDKEvTTVPFL6dCkFJwXtguqak"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

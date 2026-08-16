@@ -90,22 +90,25 @@ fun ActiveRouteSection(
     onDispatchOrder: (String) -> Unit,
     onDispatchAll: () -> Unit,
     onOpenPinConfirm: (DeliveryOrder) -> Unit,
-    onSimulateNav: (String, String) -> Unit,
-    onSimulateContact: (String, String) -> Unit,
+    onOpenNavigation: (NavigationPreference, DeliveryOrder) -> Unit,
+    onOpenContact: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val readyToDispatchCount = orders.count { it.status == OrderDeliveryStatus.PRONTO_PARA_ENTREGA }
-    val nextStopOrder = orders.firstOrNull()
+    // O destaque de próxima parada só existe depois da saída explícita para entrega.
+    val nextStopOrder = orders.firstOrNull {
+        it.status == OrderDeliveryStatus.SAIU_ENTREGA || it.status == OrderDeliveryStatus.EM_TRANSITO
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // "Próxima parada" Hero Card if active route exists
+        // "Próxima parada" só é exibida para rota que já saiu para entrega.
         if (nextStopOrder != null) {
             NextStopHeroCard(
                 order = nextStopOrder,
                 totalStops = orders.size,
                 navPreference = navPreference,
                 onNavPrefChange = onNavPrefChange,
-                onStartNav = { onSimulateNav(navPreference.displayName, nextStopOrder.fullAddress) }
+                onStartNav = { onOpenNavigation(navPreference, nextStopOrder) }
             )
             Spacer(modifier = Modifier.height(14.dp))
         }
@@ -125,7 +128,7 @@ fun ActiveRouteSection(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Sua Rota Ativa (${orders.size})",
+                    text = "Sua rota ativa (${orders.size})",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = ItaTextPrimary
@@ -148,7 +151,7 @@ fun ActiveRouteSection(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Sair todos ($readyToDispatchCount)",
+                        text = "Sair para entrega ($readyToDispatchCount)",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -167,9 +170,9 @@ fun ActiveRouteSection(
                     stopNumber = index + 1,
                     onDispatch = { onDispatchOrder(order.id) },
                     onConfirmPin = { onOpenPinConfirm(order) },
-                    onNavigate = { onSimulateNav(navPreference.displayName, order.fullAddress) },
-                    onCallCustomer = { onSimulateContact("Telefone", order.customerPhone) },
-                    onWhatsApp = { onSimulateContact("WhatsApp", order.customerPhone) }
+                    onNavigate = { onOpenNavigation(navPreference, order) },
+                    onCallCustomer = { onOpenContact("Telefone", order.customerPhone) },
+                    onWhatsApp = { onOpenContact("WhatsApp", order.customerPhone) }
                 )
             }
         }
@@ -210,7 +213,7 @@ private fun NextStopHeroCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Próxima Parada",
+                        text = "Próxima parada",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaSlate900
@@ -474,7 +477,7 @@ fun ActiveDeliveryCard(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = if (isReady) "PRONTO P/ SAIR" else "EM ENTREGA",
+                        text = if (isReady) "PRONTO PARA SAIR" else "EM ENTREGA",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.4.sp,
@@ -511,7 +514,7 @@ fun ActiveDeliveryCard(
             order.notes?.let { note ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Obs: $note",
+                    text = "Observação: $note",
                     fontSize = 11.sp,
                     color = ItaSlate500
                 )
@@ -636,7 +639,7 @@ fun ActiveDeliveryCard(
                     order.payment.displayChangeText?.let { changeText ->
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "💵 $changeText",
+                            text = "Troco: $changeText",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFB45309)

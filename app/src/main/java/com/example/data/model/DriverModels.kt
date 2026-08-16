@@ -8,11 +8,12 @@ data class DriverProfile(
     val name: String,
     val email: String,
     val phone: String,
-    val vehicleType: String = "Motocicleta 160cc",
-    val vehiclePlate: String = "ITA-9A82",
-    val rating: Double = 4.95,
-    val completedDeliveriesCount: Int = 342,
-    val memberSince: String = "Março de 2024"
+    // Estes campos só devem ser preenchidos quando vierem de uma fonte real.
+    val vehicleType: String = "",
+    val vehiclePlate: String = "",
+    val rating: Double = 0.0,
+    val completedDeliveriesCount: Int = 0,
+    val memberSince: String = ""
 )
 
 /**
@@ -48,7 +49,7 @@ data class StoreDriverLink(
     val status: DriverLinkStatus,
     val invitedAt: String,
     val acceptedAt: String? = null,
-    val tags: List<String> = listOf("Vínculo direto", "Entregas locais", "Horário flexível")
+    val tags: List<String> = emptyList()
 )
 
 /**
@@ -118,6 +119,10 @@ data class DeliveryOrder(
     val addressNumber: String,
     val addressNeighborhood: String,
     val addressCity: String,
+    val addressState: String = "",
+    val addressCep: String = "",
+    val destinationLatitude: Double? = null,
+    val destinationLongitude: Double? = null,
     val addressComplement: String? = null,
     val deliveryFee: Double,
     val driverEarnings: Double,
@@ -135,12 +140,19 @@ data class DeliveryOrder(
     val deliveredAt: String? = null
 ) {
     val fullAddress: String
-        get() = "$addressStreet, $addressNumber" +
-                (if (!addressComplement.isNullOrBlank()) " - $addressComplement" else "") +
-                ", $addressNeighborhood - $addressCity"
+        get() = listOfNotNull(
+            listOf(addressStreet, addressNumber).filter { it.isNotBlank() }.joinToString(", ").ifBlank { null },
+            addressComplement?.takeIf { it.isNotBlank() },
+            listOf(addressNeighborhood, addressCity, addressState)
+                .filter { it.isNotBlank() }
+                .joinToString(" - ")
+                .ifBlank { null },
+            addressCep.takeIf { it.isNotBlank() }?.let { "CEP $it" }
+        ).joinToString(", ")
 
     val shortAddress: String
-        get() = "$addressStreet, $addressNumber"
+        get() = listOf(addressStreet, addressNumber).filter { it.isNotBlank() }.joinToString(", ")
+            .ifBlank { addressStreet.ifBlank { "Endereço não informado" } }
 }
 
 /**
