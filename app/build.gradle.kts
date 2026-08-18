@@ -20,8 +20,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 10
-    versionName = "2.0.8-rota-chegada-assistida"
+    versionCode = 14
+    versionName = "2.1.2-autocadastro-motoboy-web"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

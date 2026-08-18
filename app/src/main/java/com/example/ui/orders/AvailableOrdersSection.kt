@@ -33,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -171,11 +170,15 @@ fun AvailableOrderCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (isDisabled) 0.6f else 1.0f)
             .testTag("card_available_order_${order.id}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = ItaSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDisabled) ItaSlate100 else ItaSurface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isDisabled) ItaSlate300 else ItaBorder
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Store Name + Short Code + Earnings
@@ -222,84 +225,80 @@ fun AvailableOrderCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Details pill row: Items count, distance, payment method
+            // Resumo rápido dos produtos, sem exigir a expansão do pedido.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                // Items
-                Row(
-                    modifier = Modifier
-                        .background(ItaSlate100, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ShoppingBag,
-                        contentDescription = null,
-                        tint = ItaSlate600,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${order.items.sumOf { it.quantity }} itens",
-                        fontSize = 11.sp,
-                        color = ItaSlate700,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                // Payment info
-                Row(
-                    modifier = Modifier
-                        .background(
-                            if (order.payment.isPaidOnline) ItaGreenLight else Color(0xFFFEF3C7),
-                            RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = when {
-                            order.payment.method.contains("PIX", true) -> Icons.Default.QrCode2
-                            order.payment.method.contains("Dinheiro", true) -> Icons.Default.Payments
-                            else -> Icons.Default.CreditCard
-                        },
-                        contentDescription = null,
-                        tint = if (order.payment.isPaidOnline) ItaGreenDark else Color(0xFFB45309),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = order.payment.method,
-                        fontSize = 11.sp,
-                        color = if (order.payment.isPaidOnline) ItaGreenDark else Color(0xFF92400E),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                // Distância calculada somente com coordenadas reais salvas no pedido.
+                Icon(
+                    imageVector = Icons.Default.ShoppingBag,
+                    contentDescription = null,
+                    tint = ItaSlate600,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (order.estimatedDistanceKm > 0.0) {
-                        "• ~${String.format("%.1f", order.estimatedDistanceKm)} km"
-                    } else {
-                        "• Localização não informada"
-                    },
-                    fontSize = 11.sp,
-                    color = ItaSlate400
+                    text = "Itens: ${order.driverItemsSummary}",
+                    fontSize = 12.sp,
+                    color = ItaSlate700,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            // Troco note if payment is cash
-            order.payment.displayChangeText?.let { changeText ->
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Troco: $changeText",
-                    fontSize = 11.sp,
-                    color = Color(0xFFB45309),
-                    fontWeight = FontWeight.SemiBold
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Distância calculada somente com coordenadas reais salvas no pedido.
+            Text(
+                text = if (order.estimatedDistanceKm > 0.0) {
+                    "Distância estimada: ~${String.format("%.1f", order.estimatedDistanceKm)} km"
+                } else {
+                    "Distância: localização não informada"
+                },
+                fontSize = 11.sp,
+                color = ItaSlate500
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Instrução operacional de pagamento para a entrega.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (order.payment.isPaidOnline) ItaGreenLight else Color(0xFFFEF3C7),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    imageVector = when {
+                        order.payment.method.contains("PIX", true) -> Icons.Default.QrCode2
+                        order.payment.method.contains("Dinheiro", true) || order.payment.method.contains("cash", true) -> Icons.Default.Payments
+                        else -> Icons.Default.CreditCard
+                    },
+                    contentDescription = null,
+                    tint = if (order.payment.isPaidOnline) ItaGreenDark else Color(0xFFB45309),
+                    modifier = Modifier.size(16.dp)
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Column {
+                    Text(
+                        text = order.payment.driverInstruction,
+                        fontSize = 12.sp,
+                        color = if (order.payment.isPaidOnline) ItaGreenDark else Color(0xFF92400E),
+                        fontWeight = FontWeight.Bold
+                    )
+                    order.payment.displayChangeText?.let { changeText ->
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = changeText,
+                            fontSize = 11.sp,
+                            color = Color(0xFF92400E),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))

@@ -14,6 +14,14 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     fun getCurrentUser(): Flow<DriverProfile?>
     suspend fun login(email: String, password: String): Result<DriverProfile>
+    suspend fun registerMotoboy(
+        fullName: String,
+        document: String,
+        vehicle: String,
+        whatsapp: String,
+        email: String,
+        password: String
+    ): Result<DriverProfile>
     suspend fun logout()
     fun isAuthenticated(): Flow<Boolean>
 }

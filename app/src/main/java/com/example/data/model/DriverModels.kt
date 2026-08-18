@@ -93,6 +93,18 @@ data class PaymentSummary(
         get() = if (changeFor != null && changeFor > amount) {
             "Troco para R$ ${String.format("%.2f", changeFor)} (R$ ${String.format("%.2f", changeFor - amount)})"
         } else null
+
+    /** Texto operacional para o entregador, sem alterar o método ou o valor do pedido. */
+    val driverInstruction: String
+        get() {
+            val normalized = method.trim().lowercase()
+            return when {
+                normalized.contains("pix") -> "Pix direto — já pago"
+                normalized.contains("cart") || normalized.contains("crédito") || normalized.contains("credito") || normalized.contains("débito") || normalized.contains("debito") -> "Cartão — levar maquininha"
+                normalized.contains("dinheiro") || normalized.contains("cash") -> "Dinheiro — cobrar na entrega"
+                else -> method.replace('_', ' ').ifBlank { "Pagamento não informado" }
+            }
+        }
 }
 
 /**
@@ -153,6 +165,12 @@ data class DeliveryOrder(
     val shortAddress: String
         get() = listOf(addressStreet, addressNumber).filter { it.isNotBlank() }.joinToString(", ")
             .ifBlank { addressStreet.ifBlank { "Endereço não informado" } }
+
+    /** Resumo legível dos produtos para a visualização rápida do entregador. */
+    val driverItemsSummary: String
+        get() = items.joinToString(" + ") { item ->
+            if (item.quantity == 1) item.name else "${item.quantity}x ${item.name}"
+        }.ifBlank { "Itens não informados" }
 }
 
 /**

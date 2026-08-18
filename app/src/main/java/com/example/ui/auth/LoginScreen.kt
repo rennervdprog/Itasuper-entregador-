@@ -78,6 +78,17 @@ fun LoginScreen(
     onLoginSuccess: (hasAcceptedLink: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showRegistration by remember { mutableStateOf(false) }
+    if (showRegistration) {
+        MotoboyRegistrationScreen(
+            viewModel = viewModel,
+            onRegistrationSuccess = onLoginSuccess,
+            onBackToLogin = { showRegistration = false },
+            modifier = modifier
+        )
+        return
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -255,6 +266,19 @@ fun LoginScreen(
                         }
                     }
                 }
+
+                TextButton(
+                    onClick = { showRegistration = true },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "Ainda não tem conta? Criar conta de entregador",
+                        color = ItaOrange,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             // Bottom Help Action
@@ -298,9 +322,9 @@ fun LoginScreen(
                 Text(
                     text = "O ItaSuper Entregador é exclusivo para motoboys vinculados diretamente às lojas parceiras ItaSuper.\n\n" +
                             "Para acessar:\n" +
-                            "1. Peça ao lojista para cadastrar seu e-mail no painel da loja dele.\n" +
-                            "2. Entre com o mesmo e-mail e sua senha de entregador.\n" +
-                            "3. Aceite o convite da loja para começar a receber pedidos.",
+                            "1. Crie sua conta de entregador com seus dados.\n" +
+                            "2. Entre com o mesmo e-mail e sua senha.\n" +
+                            "3. Aceite o convite de uma loja parceira para começar a receber pedidos.",
                     fontSize = 14.sp,
                     color = ItaTextSecondary,
                     lineHeight = 20.sp

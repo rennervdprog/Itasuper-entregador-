@@ -1,10 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,15 +56,10 @@ fun OnlineHeroToggle(
         label = "hero_bg_color"
     )
 
-    // Subtle pulsing animation when online
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse_online")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        ),
+    // Transição curta de entrada/saída; evita uma animação infinita em segundo plano.
+    val pulseAlpha by animateFloatAsState(
+        targetValue = if (isOnline) 1.0f else 0.4f,
+        animationSpec = tween(300),
         label = "pulse_alpha"
     )
 

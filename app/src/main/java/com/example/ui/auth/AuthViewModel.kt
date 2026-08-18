@@ -22,6 +22,18 @@ data class LoginUiState(
     val isHelpDialogOpen: Boolean = false
 )
 
+data class MotoboyRegistrationUiState(
+    val fullName: String = "",
+    val document: String = "",
+    val vehicle: String = "",
+    val whatsapp: String = "",
+    val email: String = "",
+    val password: String = "",
+    val passwordConfirmation: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
+)
+
 class AuthViewModel(
     private val authRepository: AuthRepository = AppContainer.authRepository,
     private val linkRepository: DriverLinkRepository = AppContainer.linkRepository
@@ -29,6 +41,9 @@ class AuthViewModel(
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    private val _registrationUiState = MutableStateFlow(MotoboyRegistrationUiState())
+    val registrationUiState: StateFlow<MotoboyRegistrationUiState> = _registrationUiState.asStateFlow()
 
     val currentUser: StateFlow<DriverProfile?> = authRepository.getCurrentUser()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -46,6 +61,68 @@ class AuthViewModel(
 
     fun setHelpDialogOpen(open: Boolean) {
         _uiState.value = _uiState.value.copy(isHelpDialogOpen = open)
+    }
+
+    fun onRegistrationChange(
+        fullName: String? = null,
+        document: String? = null,
+        vehicle: String? = null,
+        whatsapp: String? = null,
+        email: String? = null,
+        password: String? = null,
+        passwordConfirmation: String? = null
+    ) {
+        val current = _registrationUiState.value
+        _registrationUiState.value = current.copy(
+            fullName = fullName ?: current.fullName,
+            document = document ?: current.document,
+            vehicle = vehicle ?: current.vehicle,
+            whatsapp = whatsapp ?: current.whatsapp,
+            email = email ?: current.email,
+            password = password ?: current.password,
+            passwordConfirmation = passwordConfirmation ?: current.passwordConfirmation,
+            errorMessage = null
+        )
+    }
+
+    fun registerMotoboy(onSuccess: (hasAcceptedLink: Boolean) -> Unit) {
+        val state = _registrationUiState.value
+        when {
+            state.fullName.trim().length < 3 -> registrationError("Informe seu nome completo.")
+            state.document.filter(Char::isDigit).length !in 11..14 -> registrationError("Informe um CPF válido.")
+            state.vehicle.trim().length < 3 -> registrationError("Informe o modelo do veículo.")
+            state.whatsapp.filter(Char::isDigit).length !in 10..13 -> registrationError("Informe um WhatsApp válido com DDD.")
+            !state.email.trim().contains("@") -> registrationError("Informe um e-mail válido.")
+            state.password.length < 6 -> registrationError("A senha deve conter pelo menos 6 caracteres.")
+            state.password != state.passwordConfirmation -> registrationError("As senhas não coincidem.")
+            else -> viewModelScope.launch {
+                _registrationUiState.value = state.copy(isLoading = true, errorMessage = null)
+                val result = authRepository.registerMotoboy(
+                    fullName = state.fullName,
+                    document = state.document,
+                    vehicle = state.vehicle,
+                    whatsapp = state.whatsapp,
+                    email = state.email,
+                    password = state.password
+                )
+                if (result.isSuccess) {
+                    val hasLink = runCatching {
+                        linkRepository.getLinks().first().any { it.status.name == "ACCEPTED" }
+                    }.getOrDefault(false)
+                    _registrationUiState.value = MotoboyRegistrationUiState()
+                    onSuccess(hasLink)
+                } else {
+                    _registrationUiState.value = _registrationUiState.value.copy(
+                        isLoading = false,
+                        errorMessage = registrationErrorMessage(result.exceptionOrNull())
+                    )
+                }
+            }
+        }
+    }
+
+    private fun registrationError(message: String) {
+        _registrationUiState.value = _registrationUiState.value.copy(errorMessage = message)
     }
 
     fun login(onSuccess: (hasAcceptedLink: Boolean) -> Unit) {
@@ -76,6 +153,20 @@ class AuthViewModel(
                     errorMessage = loginErrorMessage(result.exceptionOrNull())
                 )
             }
+        }
+    }
+
+    private fun registrationErrorMessage(error: Throwable?): String {
+        val detail = error?.message.orEmpty().lowercase()
+        return when {
+            detail.contains("already registered") || detail.contains("already been registered") || detail.contains("user already registered") ->
+                "Este e-mail já possui uma conta. Entre com sua senha."
+            detail.contains("email not confirmed") || detail.contains("email_not_confirmed") ->
+                "Confirme seu e-mail e entre novamente para concluir o cadastro."
+            detail.contains("network") || detail.contains("timeout") || detail.contains("connection") ->
+                "Não foi possível concluir o cadastro agora. Verifique sua internet."
+            error?.message?.isNotBlank() == true -> error.message.orEmpty()
+            else -> "Não foi possível concluir o cadastro agora. Tente novamente."
         }
     }
 

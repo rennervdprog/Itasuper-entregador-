@@ -107,9 +107,13 @@ fun OrdersScreen(
     val isConnectivityBannerVisible by viewModel.isConnectivityBannerVisible.collectAsState()
     val offlineConfirmations by viewModel.offlineConfirmations.collectAsState()
 
-    val acceptedStores = linkedStores.filter { it.status == DriverLinkStatus.ACCEPTED }
-    val filteredAvailableOrders = availableOrders.filter {
-        uiState.selectedStoreFilterId == null || it.store.id == uiState.selectedStoreFilterId
+    val acceptedStores = remember(linkedStores) {
+        linkedStores.filter { it.status == DriverLinkStatus.ACCEPTED }
+    }
+    val filteredAvailableOrders = remember(availableOrders, uiState.selectedStoreFilterId) {
+        availableOrders.filter {
+            uiState.selectedStoreFilterId == null || it.store.id == uiState.selectedStoreFilterId
+        }
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -388,6 +392,10 @@ private fun StoresChipsFilter(
     selectedStoreId: String?,
     onSelectStore: (String?) -> Unit
 ) {
+    val orderCountByStoreId = remember(availableOrders) {
+        availableOrders.groupingBy { it.store.id }.eachCount()
+    }
+
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -422,7 +430,7 @@ private fun StoresChipsFilter(
 
         // Store specific chips
         items(stores, key = { it.id }) { link ->
-            val storeOrdersCount = availableOrders.count { it.store.id == link.store.id }
+            val storeOrdersCount = orderCountByStoreId[link.store.id] ?: 0
             val isSelected = selectedStoreId == link.store.id
 
             FilterChip(

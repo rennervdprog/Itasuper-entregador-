@@ -94,10 +94,14 @@ fun ActiveRouteSection(
     onOpenContact: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val readyToDispatchCount = orders.count { it.status == OrderDeliveryStatus.PRONTO_PARA_ENTREGA }
+    val readyToDispatchCount = remember(orders) {
+        orders.count { it.status == OrderDeliveryStatus.PRONTO_PARA_ENTREGA }
+    }
     // O destaque de próxima parada só existe depois da saída explícita para entrega.
-    val nextStopOrder = orders.firstOrNull {
-        it.status == OrderDeliveryStatus.SAIU_ENTREGA || it.status == OrderDeliveryStatus.EM_TRANSITO
+    val nextStopOrder = remember(orders) {
+        orders.firstOrNull {
+            it.status == OrderDeliveryStatus.SAIU_ENTREGA || it.status == OrderDeliveryStatus.EM_TRANSITO
+        }
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -597,11 +601,21 @@ fun ActiveDeliveryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${order.items.size} itens no pedido • ${order.payment.method}",
-                    fontSize = 12.sp,
-                    color = ItaSlate500
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Itens: ${order.driverItemsSummary}",
+                        fontSize = 12.sp,
+                        color = ItaSlate700,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = order.payment.driverInstruction,
+                        fontSize = 11.sp,
+                        color = if (order.payment.isPaidOnline) ItaGreenDark else ItaSlate600,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null,
@@ -617,6 +631,14 @@ fun ActiveDeliveryCard(
                         .background(ItaSlate50, RoundedCornerShape(10.dp))
                         .padding(10.dp)
                 ) {
+                    Text(
+                        text = order.payment.driverInstruction,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (order.payment.isPaidOnline) ItaGreenDark else ItaSlate700
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     order.items.forEach { item ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Duration
 import java.time.Instant
+import java.time.OffsetDateTime
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
@@ -66,9 +67,7 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
             }
             .decodeList<OrderRow>()
             .filter { order ->
-                since == null || runCatching {
-                    Instant.parse(order.confirmedAt ?: order.createdAt).isAfter(since)
-                }.getOrDefault(false)
+                since == null || parseTimestamp(order.confirmedAt ?: order.createdAt)?.isAfter(since) == true
             }
             .sortedByDescending { it.confirmedAt ?: it.createdAt }
 
@@ -86,7 +85,7 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
             val store = storeById[order.storeId]
             val distance = haversineKm(store?.latitude, store?.longitude, order.clientLat, order.clientLng) ?: 0.0
             val timestampValue = order.confirmedAt ?: order.createdAt
-            val timestamp = timestampValue?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            val timestamp = parseTimestamp(timestampValue)
             DriverHistoryEntry(
                 id = order.id,
                 orderShortCode = OrderDisplayCode.fromOrderId(order.id),
@@ -102,6 +101,14 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
                 statusText = "Concluída",
                 isStraightLineEstimate = true
             )
+        }
+    }
+
+    /** Aceita ISO 8601 estrito e o timestamp PostgreSQL com espaço antes do offset. */
+    private fun parseTimestamp(value: String?): Instant? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { Instant.parse(value) }.getOrElse {
+            runCatching { OffsetDateTime.parse(value.replace(' ', 'T')).toInstant() }.getOrNull()
         }
     }
 
