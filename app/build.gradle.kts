@@ -20,8 +20,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 14
-    versionName = "2.1.2-autocadastro-motoboy-web"
+    versionCode = 15
+    versionName = "2.1.3-configuracao-segura"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -29,10 +29,17 @@ android {
       val file = rootProject.file("local.properties")
       if (file.exists()) file.inputStream().use { input -> load(input) }
     }
-    buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("SUPABASE_URL", "")}\"")
-    buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"${localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY", "")}\"")
+    fun requiredPublicConfig(name: String): String =
+      localProperties.getProperty(name)?.trim().orEmpty().ifBlank {
+        providers.gradleProperty(name).orNull?.trim().orEmpty().ifBlank {
+          System.getenv(name)?.trim().orEmpty()
+        }
+      }
+    buildConfigField("String", "SUPABASE_URL", "\"${requiredPublicConfig("SUPABASE_URL")}\"")
+    buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"${requiredPublicConfig("SUPABASE_PUBLISHABLE_KEY")}\"")
   }
 
+  val projectDebugKeystore = rootProject.file("debug.keystore")
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
@@ -41,11 +48,13 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+    if (projectDebugKeystore.exists()) {
+      create("projectDebug") {
+        storeFile = projectDebugKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -56,7 +65,10 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    // Preserva a assinatura histórica em builds locais; no CI, usa a debug padrão do Android.
+    debug {
+      signingConfig = signingConfigs.findByName("projectDebug") ?: signingConfigs.getByName("debug")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11

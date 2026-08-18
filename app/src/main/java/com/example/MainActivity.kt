@@ -22,10 +22,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.example.data.model.IncomingOrderAlert
+import com.example.data.remote.ItaSuperSupabase
 import com.example.platform.IncomingOrderOverlay
 import com.example.ui.navigation.AppNavHost
 import com.example.ui.onboarding.DriverPermissionStatus
 import com.example.ui.onboarding.DriverPermissionsScreen
+import com.example.ui.system.BackendConfigurationScreen
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaSuperTheme
 
@@ -49,17 +51,24 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = ItaBackground
                 ) {
-                    if (permissionStatus.allGranted) {
-                        AppNavHost()
-                    } else {
-                        DriverPermissionsScreen(
-                            status = permissionStatus,
-                            onRequestNotifications = ::requestNotificationPermission,
-                            onRequestLocation = ::requestLocationPermission,
-                            onRequestOverlay = ::openOverlaySettings,
-                            onTestOverlay = ::showOverlayTest,
-                            onContinue = { refreshPermissionStatus() }
-                        )
+                    when {
+                        !ItaSuperSupabase.isConfigured -> {
+                            BackendConfigurationScreen(
+                                message = ItaSuperSupabase.configurationMessage,
+                                onClose = ::finish
+                            )
+                        }
+                        permissionStatus.allGranted -> AppNavHost()
+                        else -> {
+                            DriverPermissionsScreen(
+                                status = permissionStatus,
+                                onRequestNotifications = ::requestNotificationPermission,
+                                onRequestLocation = ::requestLocationPermission,
+                                onRequestOverlay = ::openOverlaySettings,
+                                onTestOverlay = ::showOverlayTest,
+                                onContinue = { refreshPermissionStatus() }
+                            )
+                        }
                     }
                 }
             }

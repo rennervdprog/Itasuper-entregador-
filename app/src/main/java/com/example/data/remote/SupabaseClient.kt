@@ -15,17 +15,30 @@ import io.github.jan.supabase.realtime.Realtime
  */
 @OptIn(SupabaseExperimental::class)
 object ItaSuperSupabase {
-    val client by lazy {
-        check(BuildConfig.SUPABASE_URL.isNotBlank()) {
-            "SUPABASE_URL não configurada em local.properties"
+    private val configuredUrl: String = BuildConfig.SUPABASE_URL.trim()
+    private val configuredPublishableKey: String = BuildConfig.SUPABASE_PUBLISHABLE_KEY.trim()
+
+    val isConfigured: Boolean
+        get() = configuredUrl.isNotBlank() && configuredPublishableKey.isNotBlank()
+
+    val configurationMessage: String
+        get() = when {
+            configuredUrl.isBlank() && configuredPublishableKey.isBlank() ->
+                "As configurações de conexão do aplicativo não foram incluídas nesta instalação."
+            configuredUrl.isBlank() ->
+                "A configuração de endereço do serviço não foi incluída nesta instalação."
+            else ->
+                "A chave pública de conexão não foi incluída nesta instalação."
         }
-        check(BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()) {
-            "SUPABASE_PUBLISHABLE_KEY não configurada em local.properties"
+
+    val client by lazy {
+        check(isConfigured) {
+            "Configuração do Supabase ausente no APK."
         }
 
         createSupabaseClient(
-            supabaseUrl = BuildConfig.SUPABASE_URL,
-            supabaseKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
+            supabaseUrl = configuredUrl,
+            supabaseKey = configuredPublishableKey
         ) {
             install(Auth) {
                 alwaysAutoRefresh = true

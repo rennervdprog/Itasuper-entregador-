@@ -31,6 +31,20 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Prepare public backend configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Configure os segredos SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY antes de gerar o APK."
+            exit 1
+          fi
+          {
+            printf 'SUPABASE_URL=%s\\n' "$SUPABASE_URL"
+            printf 'SUPABASE_PUBLISHABLE_KEY=%s\\n' "$SUPABASE_PUBLISHABLE_KEY"
+          } > local.properties
+
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
