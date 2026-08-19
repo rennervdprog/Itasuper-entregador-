@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -54,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryOrder
+import com.example.ui.components.DriverHelmetMark
 import com.example.data.model.NavigationPreference
 import com.example.data.model.OrderDeliveryStatus
 import com.example.ui.theme.ItaBorder
@@ -683,8 +683,7 @@ fun ActiveDeliveryCard(
                         .height(44.dp)
                         .testTag("btn_dispatch_order_${order.id}")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.DeliveryDining,
+                    DriverHelmetMark(
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)

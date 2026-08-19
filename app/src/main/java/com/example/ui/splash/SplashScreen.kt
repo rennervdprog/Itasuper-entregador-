@@ -1,57 +1,48 @@
 package com.example.ui.splash
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.fake.AppContainer
-import com.example.data.model.DriverLinkStatus
+import com.example.platform.DriverBiometricAccess
+import com.example.R
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
-    onNavigateToLogin: () -> Unit,
-    onNavigateToOnboarding: () -> Unit,
-    onNavigateToDashboard: () -> Unit,
+    onNavigateToLogin: (biometricAvailable: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(Unit) {
-        delay(900) // Quick smooth splash check
-        val currentUser = AppContainer.authRepository.getCurrentUser().first()
+        delay(650)
+        // Espera a sessão persistida terminar de carregar antes de decidir a rota.
+        // O fluxo anterior lia o valor inicial nulo e enviava ao login cedo demais.
+        val currentUser = AppContainer.authRepository.restoreSession().getOrNull()
         if (currentUser == null) {
-            onNavigateToLogin()
+            onNavigateToLogin(false)
         } else {
-            val links = AppContainer.linkRepository.getLinks().first()
-            val hasAcceptedLink = links.any { it.status == DriverLinkStatus.ACCEPTED }
-            if (hasAcceptedLink) {
-                onNavigateToDashboard()
-            } else {
-                onNavigateToOnboarding()
-            }
+            onNavigateToLogin(DriverBiometricAccess.isEnabledFor(currentUser.id))
         }
     }
 
@@ -66,19 +57,12 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(ItaOrange, RoundedCornerShape(22.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DeliveryDining,
-                    contentDescription = "ItaSuper",
-                    tint = Color.White,
-                    modifier = Modifier.size(50.dp)
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.itasuper_driver_helmet),
+                contentDescription = "ItaSuper Entregador",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(88.dp)
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 

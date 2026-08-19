@@ -47,11 +47,16 @@ import com.example.ui.theme.ItaOrange
 @Composable
 fun OnlineHeroToggle(
     isOnline: Boolean,
+    isRouteActive: Boolean = false,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bgColor by animateColorAsState(
-        targetValue = if (isOnline) ItaGreenDark else ItaDarkOffline,
+        targetValue = when {
+            isRouteActive -> ItaOrange
+            isOnline -> ItaGreenDark
+            else -> ItaDarkOffline
+        },
         animationSpec = tween(300),
         label = "hero_bg_color"
     )
@@ -66,7 +71,7 @@ fun OnlineHeroToggle(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onToggle(!isOnline) }
+            .clickable(enabled = !isRouteActive) { onToggle(!isOnline) }
             .testTag("hero_online_toggle_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor),
@@ -119,7 +124,11 @@ fun OnlineHeroToggle(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (isOnline) "VOCÊ ESTÁ ONLINE" else "VOCÊ ESTÁ OFFLINE",
+                            text = when {
+                                isRouteActive -> "VOCÊ ESTÁ EM ROTA"
+                                isOnline -> "VOCÊ ESTÁ ONLINE"
+                                else -> "VOCÊ ESTÁ OFFLINE"
+                            },
                             color = Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
@@ -137,7 +146,11 @@ fun OnlineHeroToggle(
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (isOnline) "Recebendo pedidos das suas lojas" else "Toque para começar a receber pedidos",
+                        text = when {
+                            isRouteActive -> "Disponibilidade para novos pedidos pausada até concluir a rota"
+                            isOnline -> "Recebendo pedidos das suas lojas"
+                            else -> "Toque para começar a receber pedidos"
+                        },
                         color = if (isOnline) Color(0xFFE8F5E9) else Color(0xFF94A3B8),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Normal
@@ -147,7 +160,7 @@ fun OnlineHeroToggle(
 
             Switch(
                 checked = isOnline,
-                onCheckedChange = { onToggle(it) },
+                onCheckedChange = if (isRouteActive) null else { checked -> onToggle(checked) },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = Color(0xFF047857),

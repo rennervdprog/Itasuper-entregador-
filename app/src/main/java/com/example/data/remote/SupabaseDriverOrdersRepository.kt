@@ -14,6 +14,7 @@ import com.example.platform.AddressGeocodingCache
 import com.example.platform.DriverTrackingService
 import com.example.platform.DriverNotificationHelper
 import com.example.platform.NetworkMonitor
+import com.example.data.repository.DriverAvailabilityRepository
 import com.example.data.repository.DriverOrdersRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
@@ -48,7 +49,9 @@ import kotlinx.serialization.json.put
  * quais pedidos podem ser visualizados; o aplicativo só organiza os dados nas
  * listas de disponibilidade e rota ativa.
  */
-class SupabaseDriverOrdersRepository : DriverOrdersRepository {
+class SupabaseDriverOrdersRepository(
+    private val availabilityRepository: DriverAvailabilityRepository
+) : DriverOrdersRepository {
     private val supabase = ItaSuperSupabase.client
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val availableOrders = MutableStateFlow<List<DeliveryOrder>>(emptyList())
@@ -134,6 +137,7 @@ class SupabaseDriverOrdersRepository : DriverOrdersRepository {
             if (activeRouteOrders.value.isEmpty()) {
                 DriverTrackingService.stop(ItaSuperApplication.appContext)
             }
+            availabilityRepository.setRouteActive(activeRouteOrders.value.isNotEmpty())
             return@runCatching
         }
 
@@ -207,6 +211,7 @@ class SupabaseDriverOrdersRepository : DriverOrdersRepository {
         availableOrders.value = available
         activeRouteOrders.value = active
         todayCompletedCount.value = rows.count { it.driverId == userId && it.status == "finalizado" }
+        availabilityRepository.setRouteActive(active.isNotEmpty())
         ensureRealtime(userId, storeIds)
     }
 

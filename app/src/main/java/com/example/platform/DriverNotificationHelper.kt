@@ -43,7 +43,7 @@ object DriverNotificationHelper {
     fun showNewOrder(context: Context, orderCode: String) {
         if (!canNotify(context)) return
         val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle("Novo pedido disponível")
             .setContentText("O pedido $orderCode está pronto para entrega.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -83,7 +83,7 @@ object DriverNotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ORDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle("Nova entrega disponível")
             .setContentText("$storeName • ${alert?.destinationAddress?.ifBlank { neighborhood } ?: neighborhood}")
             .setStyle(
@@ -119,7 +119,7 @@ object DriverNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle("Você chegou ao destino")
             .setContentText("$shortCode • Toque para voltar ao ItaSuper e confirmar a entrega.")
             .setStyle(NotificationCompat.BigTextStyle().bigText(
@@ -137,7 +137,7 @@ object DriverNotificationHelper {
     fun showRemotePush(context: Context, title: String, body: String) {
         if (!canNotify(context)) return
         val notification = NotificationCompat.Builder(context, CHANNEL_ORDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -150,7 +150,7 @@ object DriverNotificationHelper {
 
     fun trackingNotification(context: Context): Notification =
         NotificationCompat.Builder(context, CHANNEL_TRACKING)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle("Rastreamento de entrega ativo")
             .setContentText("Sua localização está sendo enviada enquanto houver rota ativa.")
             .setOngoing(true)

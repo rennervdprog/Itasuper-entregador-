@@ -25,12 +25,12 @@ import com.example.data.repository.DriverProfileRepository
  * repositórios de demonstração ativos neste aplicativo.
  */
 object AppContainer {
-    val authRepository: AuthRepository by lazy { SupabaseAuthRepository() }
+    val availabilityRepository: DriverAvailabilityRepository by lazy { SupabaseDriverAvailabilityRepository() }
+    val authRepository: AuthRepository by lazy { SupabaseAuthRepository(availabilityRepository) }
     val profileRepository: DriverProfileRepository by lazy { SupabaseDriverProfileRepository() }
     val linkRepository: DriverLinkRepository by lazy { SupabaseDriverLinkRepository() }
-    val availabilityRepository: DriverAvailabilityRepository by lazy { SupabaseDriverAvailabilityRepository() }
     val historyRepository: DriverHistoryRepository by lazy { SupabaseDriverHistoryRepository() }
-    val ordersRepository: DriverOrdersRepository by lazy { SupabaseDriverOrdersRepository() }
+    val ordersRepository: DriverOrdersRepository by lazy { SupabaseDriverOrdersRepository(availabilityRepository) }
     val locationRepository: DriverLocationRepository by lazy { DriverPreferencesRepository() }
     val notificationsRepository: DriverNotificationsRepository by lazy { SupabaseDriverNotificationsRepository() }
 }

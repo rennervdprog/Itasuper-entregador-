@@ -23,8 +23,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
@@ -35,6 +35,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,7 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,6 +59,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.DriverProfile
+import com.example.platform.DriverBiometricAuthenticator
+import com.example.ui.components.DriverHelmetMark
 import com.example.ui.components.itaOutlinedFieldColors
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
@@ -75,7 +81,9 @@ import com.example.ui.theme.ItaTextTertiary
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
-    onLoginSuccess: (hasAcceptedLink: Boolean) -> Unit,
+    onLoginSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit,
+    biometricAvailable: Boolean = false,
+    onBiometricSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var showRegistration by remember { mutableStateOf(false) }
@@ -90,8 +98,25 @@ fun LoginScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+    val activity = LocalContext.current as? FragmentActivity
     var passwordVisible by remember { mutableStateOf(false) }
+    var biometricError by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+
+    fun requestBiometricLogin() {
+        val host = activity
+        if (host == null) {
+            biometricError = "Não foi possível iniciar a impressão digital neste aparelho."
+            return
+        }
+        DriverBiometricAuthenticator.authenticate(
+            activity = host,
+            onSuccess = { viewModel.loginWithBiometrics(onBiometricSuccess) },
+            onError = { message ->
+                biometricError = if (message.isBlank()) "Não foi possível confirmar a impressão digital." else message
+            }
+        )
+    }
 
     Surface(
         modifier = modifier
@@ -120,9 +145,8 @@ fun LoginScreen(
                         .background(ItaOrange, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.DeliveryDining,
-                        contentDescription = "ItaSuper Motoboy",
+                    DriverHelmetMark(
+                        contentDescription = "ItaSuper Entregador",
                         tint = Color.White,
                         modifier = Modifier.size(40.dp)
                     )
@@ -264,6 +288,42 @@ fun LoginScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
+                    }
+                }
+
+                if (biometricAvailable) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = ::requestBiometricLogin,
+                        enabled = !uiState.isLoading,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("btn_biometric_login")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Fingerprint,
+                            contentDescription = null,
+                            tint = ItaOrange,
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Entrar com biometria",
+                            color = ItaOrange,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (biometricError != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = biometricError.orEmpty(),
+                            color = ItaStatusDanger,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.testTag("text_biometric_error")
+                        )
                     }
                 }
 

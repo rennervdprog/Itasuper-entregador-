@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Phone
@@ -39,11 +40,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +59,8 @@ import android.widget.Toast
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.IncomingOrderAlert
 import com.example.data.model.NavigationPreference
+import com.example.platform.DriverBiometricAccess
+import com.example.platform.DriverBiometricAuthenticator
 import com.example.platform.IncomingOrderOverlay
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
@@ -79,6 +86,33 @@ fun ProfileScreen(
     val linkedStores by viewModel.linkedStores.collectAsState()
     val navPreference by viewModel.navPreference.collectAsState()
     val context = LocalContext.current
+    val biometricActivity = context as? FragmentActivity
+    var biometricEnabled by remember(profile.id) {
+        mutableStateOf(profile.id.isNotBlank() && DriverBiometricAccess.isEnabledFor(profile.id))
+    }
+
+    fun enableBiometricsFromProfile() {
+        val host = biometricActivity
+        if (host == null || profile.id.isBlank()) {
+            Toast.makeText(context, "Não foi possível iniciar a biometria neste aparelho.", Toast.LENGTH_LONG).show()
+            return
+        }
+        DriverBiometricAuthenticator.authenticate(
+            activity = host,
+            onSuccess = {
+                DriverBiometricAccess.enableFor(profile.id)
+                biometricEnabled = true
+                Toast.makeText(context, "Biometria ativada para este aparelho.", Toast.LENGTH_SHORT).show()
+            },
+            onError = { message ->
+                Toast.makeText(
+                    context,
+                    if (message.isBlank()) "A biometria não foi ativada." else message,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        )
+    }
 
     val acceptedStores = linkedStores.filter { it.status == DriverLinkStatus.ACCEPTED }
     val scrollState = rememberScrollState()
@@ -309,6 +343,63 @@ fun ProfileScreen(
                             isSelected = navPreference == NavigationPreference.WAZE,
                             onClick = { viewModel.setNavPreference(NavigationPreference.WAZE) },
                             modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Fingerprint,
+                            contentDescription = null,
+                            tint = ItaOrange,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Entrada com biometria",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ItaTextPrimary
+                            )
+                            Text(
+                                text = if (biometricEnabled) "Ativada neste aparelho" else "Use a impressão digital para entrar mais rápido",
+                                fontSize = 12.sp,
+                                color = ItaTextSecondary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            if (biometricEnabled) {
+                                DriverBiometricAccess.disableFor(profile.id)
+                                biometricEnabled = false
+                                Toast.makeText(context, "Biometria desativada neste aparelho.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                enableBiometricsFromProfile()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_profile_biometric"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (biometricEnabled) Color(0xFFFEE2E2) else ItaOrange,
+                            contentColor = if (biometricEnabled) ItaStatusDanger else Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = if (biometricEnabled) "Desativar biometria" else "Ativar biometria",
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

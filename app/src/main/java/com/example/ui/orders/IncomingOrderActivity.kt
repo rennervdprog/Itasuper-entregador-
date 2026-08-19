@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.example.MainActivity
 import com.example.data.fake.AppContainer
+import com.example.ui.components.DriverHelmetMark
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaSuperTheme
 import kotlinx.coroutines.launch
@@ -171,9 +171,8 @@ private fun IncomingOrderContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.DeliveryDining,
-            contentDescription = null,
+        DriverHelmetMark(
+            contentDescription = "ItaSuper Entregador",
             modifier = Modifier.size(68.dp),
             tint = ItaOrange
         )

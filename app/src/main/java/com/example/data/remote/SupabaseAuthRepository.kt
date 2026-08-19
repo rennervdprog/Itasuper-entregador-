@@ -1,10 +1,13 @@
 package com.example.data.remote
 
 import com.example.data.model.DriverProfile
+import com.example.platform.DriverBiometricAccess
 import com.example.platform.DriverPushRegistration
 import com.example.data.repository.AuthRepository
+import com.example.data.repository.DriverAvailabilityRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -14,19 +17,22 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-class SupabaseAuthRepository : AuthRepository {
+class SupabaseAuthRepository(
+    private val availabilityRepository: DriverAvailabilityRepository
+) : AuthRepository {
     private val supabase = ItaSuperSupabase.client
     private val currentUser = MutableStateFlow<DriverProfile?>(null)
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
-        repositoryScope.launch { refreshCurrentUser() }
+        repositoryScope.launch { restoreSession() }
     }
 
     override fun getCurrentUser(): Flow<DriverProfile?> = currentUser.asStateFlow()
@@ -45,6 +51,7 @@ class SupabaseAuthRepository : AuthRepository {
     }.onSuccess { profile ->
         currentUser.value = profile
         DriverPushRegistration.reclaimForAuthenticatedDriver()
+        availabilityRepository.restoreOnlinePresence()
     }
 
     override suspend fun registerMotoboy(
@@ -103,17 +110,35 @@ class SupabaseAuthRepository : AuthRepository {
     }
 
     override suspend fun logout() {
+        // O logout jamais cancela pedidos em andamento. Ele apenas interrompe a
+        // disponibilidade futura antes de invalidar a sessão atual.
+        runCatching { availabilityRepository.prepareForLogout() }
         supabase.auth.signOut()
+        DriverBiometricAccess.clear()
         currentUser.value = null
+    }
+
+    override suspend fun restoreSession(): Result<DriverProfile?> = runCatching {
+        // O Auth carrega a sessão persistida de forma assíncrona. A Splash deve
+        // aguardar o estado final, e não interpretar o valor inicial nulo como logout.
+        val status = supabase.auth.sessionStatus.first { it !is SessionStatus.Initializing }
+        if (status !is SessionStatus.Authenticated) {
+            currentUser.value = null
+            return@runCatching null
+        }
+        loadAuthenticatedProfile()
+    }.onSuccess { profile ->
+        currentUser.value = profile
+        if (profile != null) {
+            DriverPushRegistration.reclaimForAuthenticatedDriver()
+            availabilityRepository.restoreOnlinePresence()
+        }
     }
 
     override fun isAuthenticated(): Flow<Boolean> = currentUser.map { it != null }
 
     suspend fun refreshCurrentUser() {
-        currentUser.value = runCatching { loadAuthenticatedProfile() }.getOrNull()
-        if (currentUser.value != null) {
-            DriverPushRegistration.reclaimForAuthenticatedDriver()
-        }
+        restoreSession()
     }
 
     private suspend fun loadAuthenticatedProfile(): DriverProfile {

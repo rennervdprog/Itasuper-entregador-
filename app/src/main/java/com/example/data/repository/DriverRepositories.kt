@@ -23,6 +23,7 @@ interface AuthRepository {
         password: String
     ): Result<DriverProfile>
     suspend fun logout()
+    suspend fun restoreSession(): Result<DriverProfile?>
     fun isAuthenticated(): Flow<Boolean>
 }
 
@@ -42,6 +43,11 @@ interface DriverLinkRepository {
 interface DriverAvailabilityRepository {
     fun getAvailability(): Flow<DriverAvailability>
     suspend fun setOnline(online: Boolean, hasActiveDeliveries: Boolean): Result<Unit>
+    suspend fun restoreOnlinePresence(): Result<Unit>
+    suspend fun setRouteActive(active: Boolean): Result<Unit>
+    fun onAppForeground()
+    fun onAppBackground()
+    suspend fun prepareForLogout(): Result<Unit>
 }
 
 interface DriverOrdersRepository {

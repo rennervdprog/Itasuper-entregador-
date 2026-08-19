@@ -4,11 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.DeliveryDining
 import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
@@ -32,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.DriverHelmetMark
 import com.example.ui.history.HistoryViewModel
 import com.example.ui.orders.OrdersScreen
 import com.example.ui.orders.OrdersViewModel
@@ -54,11 +54,11 @@ import com.example.ui.theme.ItaTextSecondary
 
 enum class DashboardTab(
     val title: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
+    val selectedIcon: ImageVector?,
+    val unselectedIcon: ImageVector?,
     val testTag: String
 ) {
-    ORDERS("Pedidos", Icons.Filled.DeliveryDining, Icons.Outlined.DeliveryDining, "nav_tab_orders"),
+    ORDERS("Pedidos", null, null, "nav_tab_orders"),
     SUPPORT("Suporte", Icons.Filled.HeadsetMic, Icons.Outlined.HeadsetMic, "nav_tab_support"),
     PROFILE("Perfil", Icons.Filled.Person, Icons.Outlined.Person, "nav_tab_profile")
 }
@@ -116,14 +116,28 @@ fun DashboardScreen(
                                         }
                                     }
                                 ) {
-                                    Icon(
-                                        imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                        contentDescription = tab.title
-                                    )
+                                    if (tab == DashboardTab.ORDERS) {
+                                        DriverHelmetMark(
+                                            contentDescription = tab.title,
+                                            tint = if (isSelected) ItaOrange else ItaSlate900.copy(alpha = 0.45f),
+                                            modifier = Modifier.size(25.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (isSelected) requireNotNull(tab.selectedIcon) else requireNotNull(tab.unselectedIcon),
+                                            contentDescription = tab.title
+                                        )
+                                    }
                                 }
+                            } else if (tab == DashboardTab.ORDERS) {
+                                DriverHelmetMark(
+                                    contentDescription = tab.title,
+                                    tint = if (isSelected) ItaOrange else ItaSlate900.copy(alpha = 0.45f),
+                                    modifier = Modifier.size(25.dp)
+                                )
                             } else {
                                 Icon(
-                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                    imageVector = if (isSelected) requireNotNull(tab.selectedIcon) else requireNotNull(tab.unselectedIcon),
                                     contentDescription = tab.title
                                 )
                             }

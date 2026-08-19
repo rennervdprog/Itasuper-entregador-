@@ -48,6 +48,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.itaOutlinedFieldColors
+import com.example.data.model.DriverProfile
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaSlate500
@@ -58,7 +59,7 @@ import com.example.ui.theme.ItaSurface
 @Composable
 fun MotoboyRegistrationScreen(
     viewModel: AuthViewModel,
-    onRegistrationSuccess: (hasAcceptedLink: Boolean) -> Unit,
+    onRegistrationSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit,
     onBackToLogin: () -> Unit,
     modifier: Modifier = Modifier
 ) {

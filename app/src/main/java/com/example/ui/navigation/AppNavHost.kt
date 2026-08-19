@@ -4,10 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.platform.DriverBiometricAccess
 import com.example.ui.auth.AuthViewModel
+import com.example.ui.auth.BiometricEnrollmentScreen
 import com.example.ui.auth.LoginScreen
 import com.example.ui.dashboard.DashboardScreen
 import com.example.ui.history.HistoryViewModel
@@ -24,6 +28,13 @@ fun AppNavHost(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Splash.route
 ) {
+    fun navigateAfterAuthentication(hasAcceptedLink: Boolean, popUpRoute: String) {
+        val destination = if (hasAcceptedLink) Screen.Dashboard.route else Screen.OnboardingLink.route
+        navController.navigate(destination) {
+            popUpTo(popUpRoute) { inclusive = true }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -31,38 +42,59 @@ fun AppNavHost(
     ) {
         composable(Screen.Splash.route) {
             SplashScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
-                    }
-                },
-                onNavigateToOnboarding = {
-                    navController.navigate(Screen.OnboardingLink.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
-                    }
-                },
-                onNavigateToDashboard = {
-                    navController.navigate(Screen.Dashboard.route) {
+                onNavigateToLogin = { biometricAvailable ->
+                    navController.navigate(Screen.Login.createRoute(biometricAvailable)) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Login.route) {
+        composable(
+            route = Screen.Login.route,
+            arguments = listOf(
+                navArgument("biometric") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { entry ->
             val authViewModel: AuthViewModel = viewModel()
+            val biometricAvailable = entry.arguments?.getBoolean("biometric") ?: false
             LoginScreen(
                 viewModel = authViewModel,
-                onLoginSuccess = { hasLink ->
-                    if (hasLink) {
-                        navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
+                biometricAvailable = biometricAvailable,
+                onBiometricSuccess = { _, hasLink ->
+                    navigateAfterAuthentication(hasLink, Screen.Login.route)
+                },
+                onLoginSuccess = { profile, hasLink ->
+                    if (DriverBiometricAccess.isEnabledFor(profile.id)) {
+                        navigateAfterAuthentication(hasLink, Screen.Login.route)
                     } else {
-                        navController.navigate(Screen.OnboardingLink.route) {
+                        navController.navigate(Screen.BiometricEnrollment.createRoute(profile.id, hasLink)) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.BiometricEnrollment.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("hasAcceptedLink") { type = NavType.BoolType }
+            )
+        ) { entry ->
+            val userId = entry.arguments?.getString("userId").orEmpty()
+            val hasAcceptedLink = entry.arguments?.getBoolean("hasAcceptedLink") ?: false
+            BiometricEnrollmentScreen(
+                userId = userId,
+                onEnabled = {
+                    navigateAfterAuthentication(hasAcceptedLink, Screen.BiometricEnrollment.route)
+                },
+                onSkip = {
+                    navigateAfterAuthentication(hasAcceptedLink, Screen.BiometricEnrollment.route)
                 }
             )
         }
@@ -77,8 +109,9 @@ fun AppNavHost(
                     }
                 },
                 onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.OnboardingLink.route) { inclusive = true }
+                    navController.navigate(Screen.Login.createRoute()) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -96,10 +129,9 @@ fun AppNavHost(
                 supportViewModel = supportViewModel,
                 profileViewModel = profileViewModel,
                 onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
+                    navController.navigate(Screen.Login.createRoute()) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

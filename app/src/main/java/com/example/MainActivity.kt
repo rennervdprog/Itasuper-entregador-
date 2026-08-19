@@ -11,9 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
@@ -21,6 +19,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.fragment.app.FragmentActivity
+import com.example.data.fake.AppContainer
 import com.example.data.model.IncomingOrderAlert
 import com.example.data.remote.ItaSuperSupabase
 import com.example.platform.IncomingOrderOverlay
@@ -31,7 +32,7 @@ import com.example.ui.system.BackendConfigurationScreen
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaSuperTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val permissionRefreshHandler = Handler(Looper.getMainLooper())
     private var permissionStatus by mutableStateOf(
         DriverPermissionStatus(
@@ -43,9 +44,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         refreshPermissionStatus()
-        setContent {
+        setContentView(ComposeView(this).apply {
+            setContent {
             ItaSuperTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -72,15 +74,22 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
+            }
+        })
     }
 
     override fun onResume() {
         super.onResume()
+        AppContainer.availabilityRepository.onAppForeground()
         refreshPermissionStatus()
         // Alguns aparelhos One UI atualizam a permissão de sobreposição um pouco
         // depois do retorno das configurações do sistema.
         permissionRefreshHandler.postDelayed(::refreshPermissionStatus, 350)
+    }
+
+    override fun onPause() {
+        AppContainer.availabilityRepository.onAppBackground()
+        super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

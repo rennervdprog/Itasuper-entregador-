@@ -85,7 +85,7 @@ class AuthViewModel(
         )
     }
 
-    fun registerMotoboy(onSuccess: (hasAcceptedLink: Boolean) -> Unit) {
+    fun registerMotoboy(onSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit) {
         val state = _registrationUiState.value
         when {
             state.fullName.trim().length < 3 -> registrationError("Informe seu nome completo.")
@@ -110,7 +110,7 @@ class AuthViewModel(
                         linkRepository.getLinks().first().any { it.status.name == "ACCEPTED" }
                     }.getOrDefault(false)
                     _registrationUiState.value = MotoboyRegistrationUiState()
-                    onSuccess(hasLink)
+                    onSuccess(result.getOrThrow(), hasLink)
                 } else {
                     _registrationUiState.value = _registrationUiState.value.copy(
                         isLoading = false,
@@ -125,7 +125,27 @@ class AuthViewModel(
         _registrationUiState.value = _registrationUiState.value.copy(errorMessage = message)
     }
 
-    fun login(onSuccess: (hasAcceptedLink: Boolean) -> Unit) {
+    fun loginWithBiometrics(onSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            val result = authRepository.restoreSession()
+            val profile = result.getOrNull()
+            if (profile != null) {
+                val hasLink = runCatching {
+                    linkRepository.getLinks().first().any { it.status.name == "ACCEPTED" }
+                }.getOrDefault(false)
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                onSuccess(profile, hasLink)
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Sua sessão não está mais disponível. Entre com e-mail e senha."
+                )
+            }
+        }
+    }
+
+    fun login(onSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit) {
         val state = _uiState.value
         if (state.email.isBlank() || !state.email.contains("@")) {
             _uiState.value = state.copy(errorMessage = "Informe um e-mail válido.")
@@ -146,7 +166,7 @@ class AuthViewModel(
                     linkRepository.getLinks().first().any { it.status.name == "ACCEPTED" }
                 }.getOrDefault(false)
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                onSuccess(hasLink)
+                onSuccess(result.getOrThrow(), hasLink)
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

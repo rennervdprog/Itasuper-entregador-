@@ -203,6 +203,7 @@ fun OrdersScreen(
                         // 2. Hero Online/Offline full-width control
                         OnlineHeroToggle(
                             isOnline = availability.isOnline,
+                            isRouteActive = activeRouteOrders.isNotEmpty(),
                             onToggle = { viewModel.toggleAvailability(it) }
                         )
 
