@@ -32,7 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.DriverHelmetMark
+import com.example.data.model.DriverLinkStatus
 import com.example.ui.history.HistoryViewModel
+import com.example.ui.onboarding.DriverLinkViewModel
 import com.example.ui.orders.OrdersScreen
 import com.example.ui.orders.OrdersViewModel
 import com.example.ui.profile.ProfileScreen
@@ -69,12 +71,16 @@ fun DashboardScreen(
     historyViewModel: HistoryViewModel,
     supportViewModel: SupportViewModel,
     profileViewModel: ProfileViewModel,
+    linkViewModel: DriverLinkViewModel,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(DashboardTab.ORDERS) }
     val activeOrders by ordersViewModel.activeRouteOrders.collectAsState()
     val availableOrders by ordersViewModel.availableOrders.collectAsState()
+    val pendingInviteCount = linkViewModel.links.collectAsState().value.count {
+        it.status == DriverLinkStatus.PENDING
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -101,14 +107,18 @@ fun DashboardScreen(
                         selected = isSelected,
                         onClick = { selectedTab = tab },
                         icon = {
-                            if (tab == DashboardTab.ORDERS && (activeOrders.isNotEmpty() || availableOrders.isNotEmpty())) {
+                            if ((tab == DashboardTab.ORDERS && (activeOrders.isNotEmpty() || availableOrders.isNotEmpty())) ||
+                                (tab == DashboardTab.PROFILE && pendingInviteCount > 0)
+                            ) {
                                 BadgedBox(
                                     badge = {
                                         Badge(
                                             containerColor = if (activeOrders.isNotEmpty()) ItaOrange else ItaSlate500
                                         ) {
                                             Text(
-                                                text = if (activeOrders.isNotEmpty()) activeOrders.size.toString() else availableOrders.size.toString(),
+                                                text = if (tab == DashboardTab.PROFILE) pendingInviteCount.toString()
+                                                else if (activeOrders.isNotEmpty()) activeOrders.size.toString()
+                                                else availableOrders.size.toString(),
                                                 color = Color.White,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold
@@ -178,6 +188,7 @@ fun DashboardScreen(
                 )
                 DashboardTab.PROFILE -> ProfileScreen(
                     viewModel = profileViewModel,
+                    linkViewModel = linkViewModel,
                     onLogout = onLogout
                 )
             }

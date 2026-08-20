@@ -64,6 +64,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.NavigationPreference
 import com.example.ui.components.ConnectivityBanner
@@ -95,6 +98,7 @@ fun OrdersScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
     val profile by viewModel.profile.collectAsState()
     val availability by viewModel.availability.collectAsState()
@@ -117,6 +121,16 @@ fun OrdersScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(lifecycleOwner, viewModel) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.refreshOrders(silent = true)
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                viewModel.refreshOrders(silent = true)
+            }
+        }
+    }
 
     LaunchedEffect(uiState.feedbackMessage) {
         val message = uiState.feedbackMessage

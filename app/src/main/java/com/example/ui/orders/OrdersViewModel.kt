@@ -45,6 +45,7 @@ class OrdersViewModel(
     private val _uiState = MutableStateFlow(OrdersUiState())
     val uiState: StateFlow<OrdersUiState> = _uiState.asStateFlow()
 
+
     val profile: StateFlow<DriverProfile> = profileRepository.getProfile()
         .stateIn(
             viewModelScope,
@@ -210,8 +211,30 @@ class OrdersViewModel(
                     feedbackMessage = "Entrega ${order.shortCode} concluída com sucesso!"
                 )
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(pinErrorMessage = error.message)
+                _uiState.value = _uiState.value.copy(pinErrorMessage = friendlyPinError(error))
             }
+        }
+    }
+
+    /** Nunca exibir a mensagem bruta do Supabase: ela pode conter URL, headers e detalhes internos. */
+    private fun friendlyPinError(error: Throwable): String {
+        val raw = error.message.orEmpty()
+        val remainingAttempts = Regex("(\\d+)\\s+tentativa", RegexOption.IGNORE_CASE)
+            .find(raw)
+            ?.groupValues
+            ?.getOrNull(1)
+
+        val isInvalidPin = raw.contains("P0001", ignoreCase = true) ||
+            raw.contains("código inválido", ignoreCase = true) ||
+            raw.contains("pin inválido", ignoreCase = true)
+        val isBlocked = raw.contains("bloqueado", ignoreCase = true) ||
+            raw.contains("limite de tentativas", ignoreCase = true)
+
+        return when {
+            isBlocked -> "A validação do PIN foi bloqueada temporariamente após muitas tentativas. Confirme o código com o cliente e aguarde antes de tentar novamente."
+            isInvalidPin && remainingAttempts != null -> "PIN inválido. Ainda restam $remainingAttempts tentativa(s). Confirme os 4 dígitos com o cliente."
+            isInvalidPin -> "PIN inválido. Confirme os 4 dígitos com o cliente e tente novamente."
+            else -> "Não foi possível validar o PIN agora. Confira os 4 dígitos com o cliente e tente novamente."
         }
     }
 
@@ -225,16 +248,20 @@ class OrdersViewModel(
         _uiState.value = _uiState.value.copy(feedbackMessage = null)
     }
 
-    fun refreshOrders() {
+    fun refreshOrders(silent: Boolean = false) {
         viewModelScope.launch {
             runCatching { ordersRepository.refreshOrders() }
                 .onSuccess {
-                    _uiState.value = _uiState.value.copy(feedbackMessage = "Pedidos atualizados.")
+                    if (!silent) {
+                        _uiState.value = _uiState.value.copy(feedbackMessage = "Pedidos atualizados.")
+                    }
                 }
                 .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(
-                        feedbackMessage = error.message ?: "Não foi possível atualizar os pedidos."
-                    )
+                    if (!silent) {
+                        _uiState.value = _uiState.value.copy(
+                            feedbackMessage = error.message ?: "Não foi possível atualizar os pedidos."
+                        )
+                    }
                 }
         }
     }

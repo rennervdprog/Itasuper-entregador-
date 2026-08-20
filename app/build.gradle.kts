@@ -20,8 +20,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 27
-    versionName = "2.2.5-icones-padronizados"
+    versionCode = 35
+    versionName = "2.3.3-realtime-pedidos"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

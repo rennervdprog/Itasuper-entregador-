@@ -14,6 +14,14 @@ data class ProfileRow(
 )
 
 @Serializable
+data class DriverDirectoryPreferenceRow(
+    @SerialName("user_id") val userId: String,
+    val city: String? = null,
+    @SerialName("is_listed") val isListed: Boolean = false,
+    @SerialName("contact_consent_at") val contactConsentAt: String? = null
+)
+
+@Serializable
 data class StoreDriverLinkRow(
     val id: String,
     @SerialName("store_id") val storeId: String,

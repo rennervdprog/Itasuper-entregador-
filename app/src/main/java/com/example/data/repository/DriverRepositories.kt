@@ -3,6 +3,7 @@ package com.example.data.repository
 import com.example.data.model.DeliveryOrder
 import com.example.data.model.DriverAvailability
 import com.example.data.model.DriverHistoryEntry
+import com.example.data.model.DriverDirectoryPreference
 import com.example.data.model.DriverHistorySummary
 import com.example.data.model.DriverProfile
 import com.example.data.model.NavigationPreference
@@ -30,6 +31,12 @@ interface AuthRepository {
 interface DriverProfileRepository {
     fun getProfile(): Flow<DriverProfile>
     suspend fun updateProfile(profile: DriverProfile)
+}
+
+/** Preferência voluntária de divulgação do próprio motoboy na base por cidade. */
+interface DriverDirectoryRepository {
+    fun observeMyPreference(): Flow<DriverDirectoryPreference>
+    suspend fun savePreference(city: String, isListed: Boolean): Result<DriverDirectoryPreference>
 }
 
 interface DriverLinkRepository {

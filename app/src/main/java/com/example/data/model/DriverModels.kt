@@ -17,6 +17,16 @@ data class DriverProfile(
 )
 
 /**
+ * Preferência voluntária e independente para a base de motoboys por cidade.
+ * Não representa vínculo com loja, disponibilidade ou condição de contratação.
+ */
+data class DriverDirectoryPreference(
+    val city: String = "",
+    val isListed: Boolean = false,
+    val hasContactConsent: Boolean = false
+)
+
+/**
  * Status de vínculo entre o motoboy e a loja parceira ItaSuper.
  */
 enum class DriverLinkStatus {

@@ -122,12 +122,14 @@ fun AppNavHost(
             val historyViewModel: HistoryViewModel = viewModel()
             val supportViewModel: SupportViewModel = viewModel()
             val profileViewModel: ProfileViewModel = viewModel()
+            val linkViewModel: DriverLinkViewModel = viewModel()
 
             DashboardScreen(
                 ordersViewModel = ordersViewModel,
                 historyViewModel = historyViewModel,
                 supportViewModel = supportViewModel,
                 profileViewModel = profileViewModel,
+                linkViewModel = linkViewModel,
                 onLogout = {
                     navController.navigate(Screen.Login.createRoute()) {
                         popUpTo(navController.graph.id) { inclusive = true }

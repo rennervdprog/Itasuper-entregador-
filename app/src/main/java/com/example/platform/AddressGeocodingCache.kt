@@ -21,6 +21,12 @@ data class DestinationCoordinates(
     val longitude: Double
 )
 
+/** Município sugerido somente para preenchimento manual da preferência do diretório. */
+data class CurrentMunicipalitySuggestion(
+    val city: String,
+    val state: String = ""
+)
+
 /**
  * Resolve e armazena em cache o endereço de entrega para pedidos antigos que
  * ainda não possuem client_lat/client_lng. O resultado permite apresentar uma
@@ -101,6 +107,32 @@ object AddressGeocodingCache {
                 }
             continuation.invokeOnCancellation { cancellation.cancel() }
         }
+    }
+
+    /**
+     * Obtém a cidade correspondente à posição atual somente quando o motoboy solicita.
+     * A posição não é persistida, compartilhada ou usada para alterar disponibilidade.
+     */
+    suspend fun currentDriverMunicipality(context: Context): CurrentMunicipalitySuggestion? = withContext(Dispatchers.IO) {
+        val location = currentDriverLocation(context) ?: return@withContext null
+        if (!Geocoder.isPresent()) return@withContext null
+
+        runCatching {
+            @Suppress("DEPRECATION")
+            val address = Geocoder(context.applicationContext, Locale("pt", "BR"))
+                .getFromLocation(location.latitude, location.longitude, 1)
+                ?.firstOrNull()
+                ?: return@runCatching null
+            val city = address.locality
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?: address.subAdminArea?.trim()?.takeIf { it.isNotBlank() }
+                ?: return@runCatching null
+            CurrentMunicipalitySuggestion(
+                city = city,
+                state = address.adminArea.orEmpty().trim()
+            )
+        }.getOrNull()
     }
 
     private fun sha256(value: String): String = MessageDigest

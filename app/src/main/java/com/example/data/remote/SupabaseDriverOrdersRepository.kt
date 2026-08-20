@@ -376,7 +376,8 @@ class SupabaseDriverOrdersRepository(
 
     private fun ensureRealtime(userId: String, storeIds: List<String>) {
         val expected = storeIds.toSet()
-        if (expected == observedStoreIds && channel != null) return
+        val realtimeIsAlive = realtimeJobs.any { it.isActive }
+        if (expected == observedStoreIds && channel != null && realtimeIsAlive) return
 
         realtimeJobs.forEach { it.cancel() }
         realtimeJobs.clear()

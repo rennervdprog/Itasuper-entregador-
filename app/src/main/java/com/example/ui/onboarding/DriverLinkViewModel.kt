@@ -49,16 +49,32 @@ class DriverLinkViewModel(
 
     fun acceptInvite(linkId: String, onAccepted: () -> Unit) {
         viewModelScope.launch {
-            linkRepository.acceptInvite(linkId)
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Vínculo aceito com sucesso!")
-            onAccepted()
+            runCatching { linkRepository.acceptInvite(linkId) }
+                .onSuccess {
+                    inviteRefreshVersion.update { it + 1 }
+                    _uiState.value = _uiState.value.copy(feedbackMessage = "Vínculo aceito com sucesso!")
+                    onAccepted()
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = error.message ?: "Não foi possível aceitar o convite."
+                    )
+                }
         }
     }
 
     fun rejectInvite(linkId: String) {
         viewModelScope.launch {
-            linkRepository.rejectInvite(linkId)
-            _uiState.value = _uiState.value.copy(feedbackMessage = "Convite recusado.")
+            runCatching { linkRepository.rejectInvite(linkId) }
+                .onSuccess {
+                    inviteRefreshVersion.update { it + 1 }
+                    _uiState.value = _uiState.value.copy(feedbackMessage = "Convite recusado.")
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        feedbackMessage = error.message ?: "Não foi possível recusar o convite."
+                    )
+                }
         }
     }
 
