@@ -164,7 +164,11 @@ class SupabaseDriverOrdersRepository(
         refreshAll()
     }
 
-    suspend fun refreshAll() {
+    override suspend fun refreshAfterAppResume() {
+        refreshAll(forceRealtimeReconnect = true)
+    }
+
+    suspend fun refreshAll(forceRealtimeReconnect: Boolean = false) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: run {
             clearState()
             return
@@ -212,7 +216,7 @@ class SupabaseDriverOrdersRepository(
         activeRouteOrders.value = active
         todayCompletedCount.value = rows.count { it.driverId == userId && it.status == "finalizado" }
         availabilityRepository.setRouteActive(active.isNotEmpty())
-        ensureRealtime(userId, storeIds)
+        ensureRealtime(userId, storeIds, forceReconnect = forceRealtimeReconnect)
     }
 
     private suspend fun fetchAcceptedStoreIds(userId: String): List<String> = supabase
@@ -374,10 +378,10 @@ class SupabaseDriverOrdersRepository(
             }
     }
 
-    private fun ensureRealtime(userId: String, storeIds: List<String>) {
+    private fun ensureRealtime(userId: String, storeIds: List<String>, forceReconnect: Boolean = false) {
         val expected = storeIds.toSet()
         val realtimeIsAlive = realtimeJobs.any { it.isActive }
-        if (expected == observedStoreIds && channel != null && realtimeIsAlive) return
+        if (!forceReconnect && expected == observedStoreIds && channel != null && realtimeIsAlive) return
 
         realtimeJobs.forEach { it.cancel() }
         realtimeJobs.clear()

@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.flow
 class SupabaseDriverNotificationsRepository : DriverNotificationsRepository {
     private val supabase = ItaSuperSupabase.client
 
+    // O app não possui medição de conectividade em tempo real. Não exibimos um
+    // estado "estável" fixo que possa contradizer uma sincronização em retomada.
     override fun getConnectivityBannerVisible(): Flow<Boolean> = flow {
-        emit(true)
+        emit(false)
     }
 
     override suspend fun dismissConnectivityBanner() = Unit

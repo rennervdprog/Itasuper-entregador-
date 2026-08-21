@@ -114,6 +114,7 @@ fun ProfileScreen(
     val isSavingDirectoryPreference by viewModel.isSavingDirectoryPreference.collectAsState()
     val directoryPreferenceMessage by viewModel.directoryPreferenceMessage.collectAsState()
     val isDirectoryPreferenceError by viewModel.isDirectoryPreferenceError.collectAsState()
+    val linkUiState by linkViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val biometricActivity = context as? FragmentActivity
     var biometricEnabled by remember(profile.id) {
@@ -279,7 +280,8 @@ fun ProfileScreen(
             if (pendingInvites.isNotEmpty()) {
                 PendingStoreInvitesCard(
                     invites = pendingInvites,
-                    isChecking = linkViewModel.uiState.collectAsState().value.isCheckingInvites,
+                    isChecking = linkUiState.isCheckingInvites,
+                    processingInviteActions = linkUiState.processingInviteActions,
                     onRefresh = linkViewModel::checkNewInvites,
                     onAccept = { linkViewModel.acceptInvite(it) {} },
                     onReject = linkViewModel::rejectInvite
@@ -566,6 +568,7 @@ fun ProfileScreen(
 private fun PendingStoreInvitesCard(
     invites: List<StoreDriverLink>,
     isChecking: Boolean,
+    processingInviteActions: Map<String, Boolean>,
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onReject: (String) -> Unit
@@ -607,6 +610,9 @@ private fun PendingStoreInvitesCard(
 
             Spacer(modifier = Modifier.height(12.dp))
             invites.forEachIndexed { index, invite ->
+                val processingAction = processingInviteActions[invite.id]
+                val isProcessing = processingAction != null
+                val isAccepting = processingAction == true
                 if (index > 0) Spacer(modifier = Modifier.height(10.dp))
                 Column(
                     modifier = Modifier
@@ -636,23 +642,41 @@ private fun PendingStoreInvitesCard(
                     ) {
                         OutlinedButton(
                             onClick = { onReject(invite.id) },
+                            enabled = !isProcessing,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, ItaStatusDanger),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("Recusar", color = ItaStatusDanger, fontWeight = FontWeight.SemiBold)
+                            if (isProcessing && !isAccepting) {
+                                CircularProgressIndicator(
+                                    color = ItaStatusDanger,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Recusar", color = ItaStatusDanger, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                         Button(
                             onClick = { onAccept(invite.id) },
+                            enabled = !isProcessing,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("Aceitar", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (isProcessing && isAccepting) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Aceitar", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

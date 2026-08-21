@@ -175,6 +175,8 @@ fun OnboardingLinkScreen(
                     items(pendingInvites, key = { it.id }) { link ->
                         StoreInviteCard(
                             link = link,
+                            isProcessing = uiState.processingInviteActions.containsKey(link.id),
+                            isAccepting = uiState.processingInviteActions[link.id] == true,
                             onAccept = { viewModel.acceptInvite(link.id, onLinkAccepted) },
                             onReject = { viewModel.rejectInvite(link.id) }
                         )
@@ -356,6 +358,8 @@ private fun StepItem(
 @Composable
 private fun StoreInviteCard(
     link: StoreDriverLink,
+    isProcessing: Boolean,
+    isAccepting: Boolean,
     onAccept: () -> Unit,
     onReject: () -> Unit
 ) {
@@ -435,6 +439,7 @@ private fun StoreInviteCard(
             ) {
                 OutlinedButton(
                     onClick = onReject,
+                    enabled = !isProcessing,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = ItaStatusDanger),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder),
                     shape = RoundedCornerShape(12.dp),
@@ -443,17 +448,26 @@ private fun StoreInviteCard(
                         .height(42.dp)
                         .testTag("btn_reject_invite")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Recusar", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    if (isProcessing && !isAccepting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = ItaStatusDanger,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Recusar", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
 
                 Button(
                     onClick = onAccept,
+                    enabled = !isProcessing,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -461,14 +475,22 @@ private fun StoreInviteCard(
                         .height(42.dp)
                         .testTag("btn_accept_invite")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Aceitar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    if (isProcessing && isAccepting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Aceitar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }

@@ -12,6 +12,7 @@ import com.example.data.repository.DriverDirectoryRepository
 import com.example.data.repository.DriverLinkRepository
 import com.example.data.repository.DriverLocationRepository
 import com.example.data.repository.DriverProfileRepository
+import com.example.ui.common.DriverUserMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -113,8 +114,7 @@ class ProfileViewModel(
                 }
                 .onFailure { error ->
                     _isDirectoryPreferenceError.value = true
-                    _directoryPreferenceMessage.value = error.message
-                        ?: "Não foi possível salvar sua preferência agora. Tente novamente."
+                    _directoryPreferenceMessage.value = DriverUserMessage.directoryPreference(error)
                 }
             _isSavingDirectoryPreference.value = false
         }

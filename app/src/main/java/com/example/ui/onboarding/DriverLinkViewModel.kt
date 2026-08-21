@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 
 data class OnboardingUiState(
     val isCheckingInvites: Boolean = false,
+    /** `true` para aceite e `false` para recusa; cada convite é tratado isoladamente. */
+    val processingInviteActions: Map<String, Boolean> = emptyMap(),
     val feedbackMessage: String? = null
 )
 
@@ -48,33 +50,69 @@ class DriverLinkViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun acceptInvite(linkId: String, onAccepted: () -> Unit) {
+        if (!startInviteAction(linkId, isAccepting = true)) return
         viewModelScope.launch {
-            runCatching { linkRepository.acceptInvite(linkId) }
-                .onSuccess {
-                    inviteRefreshVersion.update { it + 1 }
-                    _uiState.value = _uiState.value.copy(feedbackMessage = "Vínculo aceito com sucesso!")
-                    onAccepted()
+            try {
+                linkRepository.acceptInvite(linkId)
+                inviteRefreshVersion.update { it + 1 }
+                _uiState.update {
+                    it.copy(feedbackMessage = "Convite aceito. Esta loja já pode enviar pedidos para você.")
                 }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(
-                        feedbackMessage = error.message ?: "Não foi possível aceitar o convite."
-                    )
+                onAccepted()
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(feedbackMessage = safeInviteError(error, "Não foi possível aceitar o convite."))
                 }
+            } finally {
+                finishInviteAction(linkId)
+            }
         }
     }
 
     fun rejectInvite(linkId: String) {
+        if (!startInviteAction(linkId, isAccepting = false)) return
         viewModelScope.launch {
-            runCatching { linkRepository.rejectInvite(linkId) }
-                .onSuccess {
-                    inviteRefreshVersion.update { it + 1 }
-                    _uiState.value = _uiState.value.copy(feedbackMessage = "Convite recusado.")
+            try {
+                linkRepository.rejectInvite(linkId)
+                inviteRefreshVersion.update { it + 1 }
+                _uiState.update { it.copy(feedbackMessage = "Convite recusado.") }
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(feedbackMessage = safeInviteError(error, "Não foi possível recusar o convite."))
                 }
-                .onFailure { error ->
-                    _uiState.value = _uiState.value.copy(
-                        feedbackMessage = error.message ?: "Não foi possível recusar o convite."
-                    )
-                }
+            } finally {
+                finishInviteAction(linkId)
+            }
+        }
+    }
+
+    private fun startInviteAction(linkId: String, isAccepting: Boolean): Boolean {
+        var started = false
+        _uiState.update { state ->
+            if (state.processingInviteActions.containsKey(linkId)) {
+                state
+            } else {
+                started = true
+                state.copy(
+                    processingInviteActions = state.processingInviteActions + (linkId to isAccepting),
+                    feedbackMessage = null
+                )
+            }
+        }
+        return started
+    }
+
+    private fun finishInviteAction(linkId: String) {
+        _uiState.update { state ->
+            state.copy(processingInviteActions = state.processingInviteActions - linkId)
+        }
+    }
+
+    private fun safeInviteError(error: Throwable, fallback: String): String {
+        val message = error.message.orEmpty()
+        return when {
+            message.contains("Sessão expirada", ignoreCase = true) -> "Sua sessão expirou. Entre novamente para responder ao convite."
+            else -> fallback
         }
     }
 
@@ -92,7 +130,7 @@ class DriverLinkViewModel(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isCheckingInvites = false,
-                        feedbackMessage = error.message ?: "Não foi possível atualizar os convites."
+                        feedbackMessage = safeInviteError(error, "Não foi possível atualizar os convites.")
                     )
                 }
         }

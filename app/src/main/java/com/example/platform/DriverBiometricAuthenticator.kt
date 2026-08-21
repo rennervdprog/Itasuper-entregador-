@@ -48,7 +48,17 @@ object DriverBiometricAuthenticator {
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    onError(errString.toString())
+                    val message = when (errorCode) {
+                        BiometricPrompt.ERROR_NEGATIVE_BUTTON,
+                        BiometricPrompt.ERROR_USER_CANCELED,
+                        BiometricPrompt.ERROR_CANCELED -> "Autenticação cancelada. Use e-mail e senha para entrar."
+                        BiometricPrompt.ERROR_LOCKOUT,
+                        BiometricPrompt.ERROR_LOCKOUT_PERMANENT -> "A biometria foi bloqueada temporariamente. Use e-mail e senha para entrar."
+                        BiometricPrompt.ERROR_HW_UNAVAILABLE,
+                        BiometricPrompt.ERROR_HW_NOT_PRESENT -> "A biometria não está disponível neste aparelho agora."
+                        else -> "Não foi possível confirmar sua identidade. Tente novamente ou use e-mail e senha."
+                    }
+                    onError(message)
                 }
             }
         )

@@ -185,8 +185,7 @@ class AuthViewModel(
                 "Confirme seu e-mail e entre novamente para concluir o cadastro."
             detail.contains("network") || detail.contains("timeout") || detail.contains("connection") ->
                 "Não foi possível concluir o cadastro agora. Verifique sua internet."
-            error?.message?.isNotBlank() == true -> error.message.orEmpty()
-            else -> "Não foi possível concluir o cadastro agora. Tente novamente."
+            else -> "Não foi possível concluir o cadastro agora. Tente novamente em instantes."
         }
     }
 

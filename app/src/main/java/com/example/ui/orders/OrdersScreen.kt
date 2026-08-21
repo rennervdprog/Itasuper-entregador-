@@ -124,7 +124,7 @@ fun OrdersScreen(
 
     LaunchedEffect(lifecycleOwner, viewModel) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.refreshOrders(silent = true)
+            viewModel.refreshAfterAppResume()
             while (true) {
                 kotlinx.coroutines.delay(60_000)
                 viewModel.refreshOrders(silent = true)

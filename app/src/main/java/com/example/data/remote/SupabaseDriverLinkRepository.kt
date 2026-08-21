@@ -26,18 +26,32 @@ class SupabaseDriverLinkRepository : DriverLinkRepository {
     }
 
     override suspend fun acceptInvite(linkId: String) {
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: error("Sessão expirada. Entre novamente para responder ao convite.")
+
         supabase
             .from("store_drivers")
             .update({ set("status", "accepted") }) {
-                filter { eq("id", linkId) }
+                filter {
+                    eq("id", linkId)
+                    eq("driver_user_id", userId)
+                    eq("status", "pending")
+                }
             }
     }
 
     override suspend fun rejectInvite(linkId: String) {
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: error("Sessão expirada. Entre novamente para responder ao convite.")
+
         supabase
             .from("store_drivers")
-            .delete {
-                filter { eq("id", linkId) }
+            .update({ set("status", "rejected") }) {
+                filter {
+                    eq("id", linkId)
+                    eq("driver_user_id", userId)
+                    eq("status", "pending")
+                }
             }
     }
 

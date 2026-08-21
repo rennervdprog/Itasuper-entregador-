@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.example.MainActivity
 import com.example.data.fake.AppContainer
+import com.example.ui.common.DriverUserMessage
 import com.example.ui.components.DriverHelmetMark
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaSuperTheme
@@ -109,7 +110,7 @@ class IncomingOrderActivity : ComponentActivity() {
                 }
                 .onFailure { error ->
                     isSubmitting = false
-                    errorMessage = error.message ?: "Não foi possível aceitar esta entrega."
+                    errorMessage = DriverUserMessage.orderAcceptance(error)
                 }
         }
     }

@@ -20,8 +20,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 35
-    versionName = "2.3.3-realtime-pedidos"
+    versionCode = 38
+    versionName = "2.3.6-recuperacao-segundo-plano"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -69,6 +69,8 @@ interface DriverOrdersRepository {
     fun getOfflineConfirmations(): Flow<List<OfflineDeliveryConfirmation>>
     suspend fun clearOfflineConfirmations()
     suspend fun refreshOrders()
+    /** Revalida dados e reconstrói a conexão Realtime após o retorno do segundo plano. */
+    suspend fun refreshAfterAppResume()
 }
 
 interface DriverHistoryRepository {

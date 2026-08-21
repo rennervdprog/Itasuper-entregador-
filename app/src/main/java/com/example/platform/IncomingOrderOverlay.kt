@@ -262,15 +262,15 @@ object IncomingOrderOverlay {
             return true
         } catch (error: WindowManager.BadTokenException) {
             dismiss()
-            lastDiagnostic = "O Android recusou a janela: ${error.message.orEmpty()}"
+            lastDiagnostic = "Não foi possível exibir o aviso de nova entrega. Verifique a permissão de sobreposição nas configurações do aparelho."
             return false
         } catch (error: SecurityException) {
             dismiss()
-            lastDiagnostic = "Permissão de sobreposição recusada: ${error.message.orEmpty()}"
+            lastDiagnostic = "Permissão de sobreposição negada. Acesse Configurações > Aplicativos > ItaSuper Entregador e ative a permissão de exibir sobre outros apps."
             return false
         } catch (error: RuntimeException) {
             dismiss()
-            lastDiagnostic = "Falha ao criar o painel: ${error.javaClass.simpleName}: ${error.message.orEmpty()}"
+            lastDiagnostic = "Não foi possível exibir o aviso de nova entrega neste momento. Tente reabrir o aplicativo."
             return false
         }
     }

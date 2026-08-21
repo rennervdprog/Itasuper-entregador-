@@ -15,11 +15,14 @@ import com.example.data.repository.DriverLocationRepository
 import com.example.data.repository.DriverNotificationsRepository
 import com.example.data.repository.DriverOrdersRepository
 import com.example.data.repository.DriverProfileRepository
+import com.example.ui.common.DriverUserMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -89,7 +92,9 @@ class OrdersViewModel(
             val hasActive = activeRouteOrders.value.isNotEmpty()
             val result = availabilityRepository.setOnline(newOnlineState, hasActive)
             result.onFailure { error ->
-                _uiState.value = _uiState.value.copy(feedbackMessage = error.message)
+                _uiState.value = _uiState.value.copy(
+                    feedbackMessage = DriverUserMessage.availability(error)
+                )
             }
         }
     }
@@ -120,7 +125,9 @@ class OrdersViewModel(
             result.onSuccess {
                 _uiState.value = _uiState.value.copy(feedbackMessage = "Pedido aceito. Inicie a rota quando estiver pronto para sair.")
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(feedbackMessage = error.message)
+                _uiState.value = _uiState.value.copy(
+                    feedbackMessage = DriverUserMessage.orderAcceptance(error)
+                )
             }
         }
     }
@@ -137,7 +144,9 @@ class OrdersViewModel(
             result.onSuccess {
                 _uiState.value = _uiState.value.copy(feedbackMessage = "${orderIds.size} pedidos aceitos. Inicie a rota quando estiver pronto para sair.")
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(feedbackMessage = error.message)
+                _uiState.value = _uiState.value.copy(
+                    feedbackMessage = DriverUserMessage.orderBatchAcceptance(error)
+                )
             }
         }
     }
@@ -152,7 +161,7 @@ class OrdersViewModel(
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        feedbackMessage = error.message ?: "Não foi possível iniciar a rota."
+                        feedbackMessage = DriverUserMessage.routeStart(error)
                     )
                 }
         }
@@ -168,7 +177,7 @@ class OrdersViewModel(
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        feedbackMessage = error.message ?: "Não foi possível iniciar a rota."
+                        feedbackMessage = DriverUserMessage.routeStart(error)
                     )
                 }
         }
@@ -240,12 +249,31 @@ class OrdersViewModel(
 
     fun reportExternalActionFailure(message: String?) {
         _uiState.value = _uiState.value.copy(
-            feedbackMessage = message ?: "Não foi possível abrir o aplicativo solicitado."
+            feedbackMessage = DriverUserMessage.externalApp(null)
         )
     }
 
     fun clearFeedback() {
         _uiState.value = _uiState.value.copy(feedbackMessage = null)
+    }
+
+    /**
+     * Recupera pedidos e Realtime depois de uma pausa longa. As tentativas são
+     * silenciosas porque a conexão do Supabase pode levar alguns instantes para
+     * voltar após o Android colocar o aplicativo em segundo plano.
+     */
+    suspend fun refreshAfterAppResume() {
+        listOf(0L, 1_500L, 4_000L).forEach { waitMillis ->
+            if (waitMillis > 0) delay(waitMillis)
+            try {
+                ordersRepository.refreshAfterAppResume()
+                return
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // Falhas transitórias ao retornar do segundo plano são tentadas novamente.
+            }
+        }
     }
 
     fun refreshOrders(silent: Boolean = false) {
@@ -259,7 +287,7 @@ class OrdersViewModel(
                 .onFailure { error ->
                     if (!silent) {
                         _uiState.value = _uiState.value.copy(
-                            feedbackMessage = error.message ?: "Não foi possível atualizar os pedidos."
+                            feedbackMessage = DriverUserMessage.orderRefresh(error)
                         )
                     }
                 }

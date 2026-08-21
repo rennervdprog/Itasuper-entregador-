@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.fake.AppContainer
 import com.example.data.model.SupportTicket
 import com.example.data.repository.DriverNotificationsRepository
+import com.example.ui.common.DriverUserMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,17 +66,24 @@ class SupportViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSubmitting = true)
-            notificationsRepository.createSupportTicket(
+            _uiState.value = _uiState.value.copy(isSubmitting = true, feedbackMessage = null)
+            val result = notificationsRepository.createSupportTicket(
                 subject = state.subject.ifBlank { state.category },
                 category = state.category,
                 description = state.description
             )
-            _uiState.value = _uiState.value.copy(
-                isSubmitting = false,
-                isNewTicketDialogOpen = false,
-                feedbackMessage = "Chamado de suporte enviado com sucesso!"
-            )
+            result.onSuccess {
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    isNewTicketDialogOpen = false,
+                    feedbackMessage = "Chamado de suporte enviado com sucesso!"
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    feedbackMessage = DriverUserMessage.support(error)
+                )
+            }
         }
     }
 
