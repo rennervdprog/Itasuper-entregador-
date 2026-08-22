@@ -1,6 +1,7 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
 import java.util.Properties
+import org.gradle.api.GradleException
 
 plugins {
   alias(libs.plugins.android.application)
@@ -40,13 +41,28 @@ android {
   }
 
   val projectDebugKeystore = rootProject.file("debug.keystore")
+  val releaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("release", ignoreCase = true)
+  }
+  fun releaseSigningValue(name: String): String =
+    providers.gradleProperty(name).orNull?.trim().orEmpty().ifBlank {
+      System.getenv(name)?.trim().orEmpty()
+    }
+  fun requiredReleaseSigningValue(name: String): String =
+    releaseSigningValue(name).ifBlank {
+      throw GradleException("A assinatura release exige a variável segura $name.")
+    }
+
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      // Builds debug não recebem valores de release. Qualquer tarefa release falha
+      // explicitamente sem uma chave externa válida; não há fallback para debug.
+      if (releaseTaskRequested) {
+        storeFile = file(requiredReleaseSigningValue("KEYSTORE_PATH"))
+        storePassword = requiredReleaseSigningValue("STORE_PASSWORD")
+        keyAlias = requiredReleaseSigningValue("KEY_ALIAS")
+        keyPassword = requiredReleaseSigningValue("KEY_PASSWORD")
+      }
     }
     if (projectDebugKeystore.exists()) {
       create("projectDebug") {
