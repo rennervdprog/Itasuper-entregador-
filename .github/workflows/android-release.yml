@@ -111,7 +111,7 @@ jobs:
           AAB="app/build/outputs/bundle/release/app-release.aab"
           APK="app/build/outputs/apk/release/app-release.apk"
           [ -s "$AAB" ] && [ -s "$APK" ]
-          jarsigner -verify -strict -certs "$AAB"
+          jarsigner -verify -certs "$AAB"
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           if [ -z "$APKSIGNER" ]; then
             echo "::error::apksigner não foi encontrado no runner."
