@@ -263,7 +263,9 @@ class OrdersViewModel(
      * voltar após o Android colocar o aplicativo em segundo plano.
      */
     suspend fun refreshAfterAppResume() {
-        listOf(0L, 1_500L, 4_000L).forEach { waitMillis ->
+        // Alguns aparelhos demoram alguns segundos para devolver a sessão
+        // persistida depois que o app volta de um gesto/atividade externa.
+        listOf(0L, 750L, 2_000L, 4_000L, 8_000L).forEach { waitMillis ->
             if (waitMillis > 0) delay(waitMillis)
             try {
                 ordersRepository.refreshAfterAppResume()

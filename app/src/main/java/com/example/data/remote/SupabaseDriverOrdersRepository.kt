@@ -170,8 +170,11 @@ class SupabaseDriverOrdersRepository(
 
     suspend fun refreshAll(forceRealtimeReconnect: Boolean = false) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: run {
-            clearState()
-            return
+            // Ao voltar do Waze ou após minimizar com gestos, o Android pode
+            // entregar o primeiro frame antes de o Auth terminar de reidratar
+            // a sessão persistida. Não apagar pedidos nesse intervalo: lançar
+            // erro faz o ViewModel repetir a recuperação automaticamente.
+            error("Sessão ainda sendo restaurada. Aguarde um instante.")
         }
         val storeIds = fetchAcceptedStoreIds(userId)
         if (storeIds.isEmpty()) {
