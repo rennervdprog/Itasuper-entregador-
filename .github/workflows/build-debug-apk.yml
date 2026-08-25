@@ -5,9 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      publish_direct_apk:
+        description: "Publicar o APK como arquivo direto em uma GitHub Release"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-debug-${{ github.ref }}
@@ -66,3 +72,16 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish direct APK release asset
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_direct_apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName = "\([^"\\]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
+          VERSION_NAME=${VERSION_NAME:-debug}
+          RELEASE_TAG="debug-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+          gh release create "$RELEASE_TAG" dist/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ItaSuper Entregador ${VERSION_NAME} — APK debug" \
+            --notes "APK debug gerado pelo workflow ${GITHUB_WORKFLOW}, commit ${GITHUB_SHA}."
