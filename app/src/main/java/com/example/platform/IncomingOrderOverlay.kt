@@ -54,9 +54,9 @@ object IncomingOrderOverlay {
 
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val orange = Color.rgb(255, 106, 0)
+        val orange = Color.rgb(194, 65, 12)
         val deepInk = Color.rgb(15, 23, 42)
-        val slate = Color.rgb(100, 116, 139)
+        val slate = Color.rgb(51, 65, 85)
         val surface = Color.rgb(255, 255, 255)
         val mist = Color.rgb(241, 245, 249)
 
@@ -103,7 +103,7 @@ object IncomingOrderOverlay {
         val supporting = label(
             "Você está livre para atender. Confira os dados\ne escolha como deseja seguir.",
             16f,
-            Color.rgb(203, 213, 225)
+            Color.rgb(226, 232, 240)
         ).apply {
             setLineSpacing(dp(appContext, 3).toFloat(), 1f)
         }
@@ -181,7 +181,7 @@ object IncomingOrderOverlay {
             isAllCaps = false
             setTextColor(deepInk)
             setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(mist, dp(appContext, 16))
+            background = roundedBackground(Color.rgb(226, 232, 240), dp(appContext, 16))
             setOnClickListener { dismiss() }
         }
         val viewOrderButton = Button(appContext).apply {

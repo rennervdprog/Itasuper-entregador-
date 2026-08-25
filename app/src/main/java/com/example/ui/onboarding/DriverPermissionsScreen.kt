@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -34,16 +36,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.ItaOrange
 
+private val AccessibleOrange = Color(0xFFC2410C)
+private val PrimaryInk = Color(0xFF0F172A)
+private val SecondaryInk = Color(0xFF334155)
+
 /** Permissões necessárias para alertas de entrega e navegação do motoboy. */
 data class DriverPermissionStatus(
     val notificationsGranted: Boolean,
     val locationGranted: Boolean,
     val overlayGranted: Boolean
 ) {
-    // A sobreposição melhora o alerta visual, mas sua disponibilidade varia por
-    // fabricante. Ela não pode impedir o motoboy de entrar e trabalhar.
+    // O alerta de nova entrega depende da sobreposição para funcionar fora da
+    // tela do app. Por isso, o onboarding só termina quando as três permissões
+    // forem confirmadas; em Android antigo, overlayGranted já vem como true.
     val allGranted: Boolean
-        get() = notificationsGranted && locationGranted
+        get() = notificationsGranted && locationGranted && overlayGranted
 }
 
 @Composable
@@ -59,8 +66,9 @@ fun DriverPermissionsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFAFAFA))
-            .padding(horizontal = 22.dp, vertical = 38.dp),
-        verticalArrangement = Arrangement.Center,
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -74,22 +82,22 @@ fun DriverPermissionsScreen(
             text = "Ative seus alertas de entrega",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = PrimaryInk,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Versão de teste 2.0.7 — contraste revisado",
-            fontSize = 12.sp,
-            color = ItaOrange,
+            text = "Permissões necessárias para trabalhar",
+            fontSize = 14.sp,
+            color = AccessibleOrange,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Receba novos pedidos e navegue com segurança durante a rota.",
+            text = "Ative as três permissões abaixo para receber pedidos e usar os alertas durante a rota.",
             fontSize = 15.sp,
-            color = Color(0xFF64748B),
+            color = SecondaryInk,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -126,9 +134,9 @@ fun DriverPermissionsScreen(
         OutlinedButton(
             onClick = onTestOverlay,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = ItaOrange)
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccessibleOrange)
         ) {
-            Text("Testar painel visual", color = ItaOrange, fontWeight = FontWeight.SemiBold)
+            Text("Testar painel visual", color = AccessibleOrange, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -136,7 +144,7 @@ fun DriverPermissionsScreen(
             onClick = onContinue,
             modifier = Modifier.fillMaxWidth(),
             enabled = status.allGranted,
-            colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+            colors = ButtonDefaults.buttonColors(containerColor = AccessibleOrange),
             shape = RoundedCornerShape(14.dp)
         ) {
             Text(
@@ -148,9 +156,9 @@ fun DriverPermissionsScreen(
         if (!status.allGranted) {
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Permita notificações e localização para entrar. A sobreposição pode ser ativada agora ou mais tarde para o alerta visual.",
-                color = Color(0xFF64748B),
-                fontSize = 13.sp,
+                text = "Conclua notificações, localização e sobreposição para entrar no aplicativo.",
+                color = SecondaryInk,
+                fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -177,34 +185,34 @@ private fun PermissionCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (granted) Color(0xFF16A34A) else ItaOrange,
+                    tint = if (granted) Color(0xFF15803D) else AccessibleOrange,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.size(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PrimaryInk)
                     Text(
                         text = if (granted) "Ativada" else "Pendente",
                         fontSize = 13.sp,
-                        color = if (granted) Color(0xFF15803D) else Color(0xFFB45309)
+                        color = if (granted) Color(0xFF166534) else Color(0xFF92400E)
                     )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(description, color = Color(0xFF64748B), fontSize = 13.sp)
+            Text(description, color = SecondaryInk, fontSize = 14.sp, lineHeight = 20.sp)
             Spacer(modifier = Modifier.height(12.dp))
             if (granted) {
-                Text("Permissão concedida", color = Color(0xFF15803D), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Permissão concedida", color = Color(0xFF166534), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             } else {
                 OutlinedButton(
                     onClick = onRequest,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ItaOrange)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccessibleOrange)
                 ) {
-                    Text(buttonLabel, color = ItaOrange, fontWeight = FontWeight.SemiBold)
+                    Text(buttonLabel, color = AccessibleOrange, fontWeight = FontWeight.SemiBold)
                     if (opensSettings) {
                         Spacer(modifier = Modifier.size(5.dp))
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp), tint = ItaOrange)
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp), tint = AccessibleOrange)
                     }
                 }
             }

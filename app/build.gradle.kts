@@ -21,8 +21,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 39
-    versionName = "2.3.7-retorno-presenca"
+    versionCode = 40
+    versionName = "2.4.0-permissoes-sobreposicao"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

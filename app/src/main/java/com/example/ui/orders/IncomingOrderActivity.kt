@@ -189,7 +189,7 @@ private fun IncomingOrderContent(
         Text(
             text = "Você não possui rota ativa.",
             fontSize = 15.sp,
-            color = Color(0xFF64748B),
+            color = Color(0xFF334155),
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(28.dp))
@@ -203,7 +203,7 @@ private fun IncomingOrderContent(
                     text = storeName,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569)
+                    color = Color(0xFF334155)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -230,7 +230,7 @@ private fun IncomingOrderContent(
                     text = "Retirada",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B)
+                        color = Color(0xFF334155)
                 )
                 Text(
                     text = pickupAddress.ifBlank { "Na loja parceira" },
@@ -248,7 +248,7 @@ private fun IncomingOrderContent(
                         text = orderDetails,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = ItaOrange
+                        color = Color(0xFFC2410C)
                     )
                 }
             }
