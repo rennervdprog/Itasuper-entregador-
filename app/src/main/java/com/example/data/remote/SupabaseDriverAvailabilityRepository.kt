@@ -34,6 +34,7 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
         .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     private var heartbeatJob: Job? = null
+    private var foregroundRestoreJob: Job? = null
     private var appIsForeground = false
     private var routeStateKnown = false
     private var hasActiveRoute = false
@@ -73,12 +74,7 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
      */
     override suspend fun restoreOnlinePresence(): Result<Unit> = runCatching {
         val userId = supabase.auth.currentUserOrNull()?.id
-        if (userId == null) {
-            onlineIntent = false
-            stopHeartbeatLoop()
-            publishAvailability()
-            return@runCatching
-        }
+            ?: error("Sessão ainda sendo restaurada. Aguarde um instante.")
 
         val status = loadDriverStatus(userId)
         onlineIntent = readOnlineIntent(userId, fallback = status?.isOnline == true)
@@ -114,11 +110,23 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
 
     override fun onAppForeground() {
         appIsForeground = true
-        scope.launch { restoreOnlinePresence() }
+        foregroundRestoreJob?.cancel()
+        foregroundRestoreJob = scope.launch {
+            // O callback de foreground pode ocorrer antes de o Auth terminar de
+            // reidratar a sessão. Repetir evita o estado Offline no primeiro
+            // retorno e elimina a necessidade de minimizar uma segunda vez.
+            listOf(0L, 750L, 2_000L, 4_000L, 8_000L).forEach { waitMillis ->
+                if (waitMillis > 0) delay(waitMillis)
+                val restored = restoreOnlinePresence()
+                if (restored.isSuccess) return@launch
+            }
+        }
     }
 
     override fun onAppBackground() {
         appIsForeground = false
+        foregroundRestoreJob?.cancel()
+        foregroundRestoreJob = null
         // Não mantém serviço em segundo plano somente para presença. Se o app
         // não retornar, a janela canônica do Supabase expira naturalmente.
         stopHeartbeatLoop()

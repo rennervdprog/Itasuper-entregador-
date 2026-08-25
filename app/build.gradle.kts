@@ -21,8 +21,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 38
-    versionName = "2.3.6-recuperacao-segundo-plano"
+    versionCode = 39
+    versionName = "2.3.7-retorno-presenca"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
