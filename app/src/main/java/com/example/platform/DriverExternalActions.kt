@@ -16,15 +16,18 @@ object DriverExternalActions {
         preference: NavigationPreference,
         destination: String,
         latitude: Double? = null,
-        longitude: Double? = null
+        longitude: Double? = null,
+        destinationPrecision: String? = null
     ): Result<Unit> = runCatching {
         val hasCoordinates = latitude != null && longitude != null &&
             latitude in -90.0..90.0 && longitude in -180.0..180.0
-        require(hasCoordinates || destination.isNotBlank()) {
+        val hasPreciseCoordinates = hasCoordinates &&
+            !destinationPrecision.equals("cep", ignoreCase = true)
+        require(hasPreciseCoordinates || destination.isNotBlank()) {
             "O endereço de destino não foi informado."
         }
 
-        val coordinateQuery = if (hasCoordinates) "$latitude,$longitude" else null
+        val coordinateQuery = if (hasPreciseCoordinates) "$latitude,$longitude" else null
         val encodedDestination = Uri.encode(coordinateQuery ?: destination)
         val primaryIntent = when (preference) {
             NavigationPreference.GOOGLE_MAPS -> Intent(

@@ -145,6 +145,8 @@ data class DeliveryOrder(
     val addressCep: String = "",
     val destinationLatitude: Double? = null,
     val destinationLongitude: Double? = null,
+    /** `cep` indica centro aproximado; não deve ser tratado como imóvel exato. */
+    val destinationPrecision: String? = null,
     val addressComplement: String? = null,
     val deliveryFee: Double,
     val driverEarnings: Double,

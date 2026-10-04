@@ -262,7 +262,8 @@ fun OrdersScreen(
                                         preference = preference,
                                         destination = order.fullAddress,
                                         latitude = order.destinationLatitude,
-                                        longitude = order.destinationLongitude
+                                        longitude = order.destinationLongitude,
+                                        destinationPrecision = order.destinationPrecision
                                     ).onFailure { viewModel.reportExternalActionFailure(it.message) }
                                 },
                                 onOpenContact = { type, num ->

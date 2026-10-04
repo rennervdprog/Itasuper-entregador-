@@ -42,6 +42,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -188,7 +190,7 @@ class SupabaseDriverOrdersRepository(
                 "id", "client_id", "store_id", "status", "subtotal", "delivery_fee", "total_price",
                 "payment_method", "neighborhood", "address_details", "delivery_cep", "delivery_city", "delivery_state",
                 "created_at", "driver_id", "delivery_pin", "confirmed_at", "needs_change", "change_for", "client_lat", "client_lng",
-                "assigned_driver_id", "order_number"
+                "assigned_driver_id", "order_number", "metadata"
             )) {
                 filter { isIn("store_id", storeIds) }
             }
@@ -287,6 +289,12 @@ class SupabaseDriverOrdersRepository(
             }
             val destinationLatitude = row.clientLat ?: resolvedDestination?.latitude
             val destinationLongitude = row.clientLng ?: resolvedDestination?.longitude
+            val destinationPrecision = row.metadata
+                ?.get("delivery_quote")
+                ?.jsonObject
+                ?.get("destination_precision")
+                ?.jsonPrimitive
+                ?.content
             val distanceKm = driverLocation?.let { currentLocation ->
                 haversineKm(
                     currentLocation.latitude,
@@ -329,6 +337,7 @@ class SupabaseDriverOrdersRepository(
                 addressCep = row.deliveryCep.orEmpty(),
                 destinationLatitude = destinationLatitude,
                 destinationLongitude = destinationLongitude,
+                destinationPrecision = destinationPrecision,
                 deliveryFee = row.deliveryFee ?: 0.0,
                 driverEarnings = row.deliveryFee ?: 0.0,
                 estimatedDistanceKm = distanceKm ?: 0.0,

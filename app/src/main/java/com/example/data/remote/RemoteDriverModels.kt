@@ -2,6 +2,7 @@ package com.example.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class ProfileRow(
@@ -78,6 +79,7 @@ data class OrderRow(
     @SerialName("change_for") val changeFor: Double? = null,
     @SerialName("client_lat") val clientLat: Double? = null,
     @SerialName("client_lng") val clientLng: Double? = null,
+    val metadata: JsonObject? = null,
     @SerialName("assigned_driver_id") val assignedDriverId: String? = null,
     @SerialName("order_number") val orderNumber: Long? = null
 )
