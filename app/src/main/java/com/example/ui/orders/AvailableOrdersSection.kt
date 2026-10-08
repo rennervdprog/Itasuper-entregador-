@@ -203,6 +203,23 @@ fun AvailableOrderCard(
                     )
                 }
 
+                // Ganho do entregador nesta entrega (equivale a taxa de entrega)
+                if (order.deliveryFee > 0.0) {
+                    Box(
+                        modifier = Modifier
+                            .background(ItaOrangeLight, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .testTag("pill_order_earnings_${order.id}"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = formatBrl(order.deliveryFee),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ItaOrange
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -335,3 +352,6 @@ fun AvailableOrderCard(
         }
     }
 }
+
+private fun formatBrl(value: Double): String =
+    "R$ " + String.format("%.2f", value).replace('.', ',')

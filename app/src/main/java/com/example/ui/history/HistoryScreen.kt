@@ -65,6 +65,7 @@ fun HistoryScreen(
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val entries by viewModel.historyEntries.collectAsState()
     val summary by viewModel.historySummary.collectAsState()
+    val totalFees = entries.sumOf { it.deliveryFee }
 
     val filters = listOf("7 dias", "30 dias", "Tudo")
 
@@ -131,6 +132,17 @@ fun HistoryScreen(
                             modifier = Modifier.weight(1f),
                             testTag = "metric_history_rides"
                         )
+                        if (totalFees > 0.0) {
+                            HistoryMetricCard(
+                                title = "Taxas do período",
+                                value = formatBrl(totalFees),
+                                subtitle = "a acertar com a loja",
+                                icon = Icons.Default.AttachMoney,
+                                iconColor = ItaGreenDark,
+                                modifier = Modifier.weight(1f),
+                                testTag = "metric_history_fees"
+                            )
+                        }
                     }
 
                     if (summary.totalDistanceKm > 0.0) {
@@ -217,6 +229,7 @@ private fun HistoryMetricCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     iconColor: Color,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     testTag: String = ""
 ) {
     Card(
@@ -257,6 +270,14 @@ private fun HistoryMetricCard(
                     fontWeight = FontWeight.Bold,
                     color = ItaTextPrimary
                 )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 10.sp,
+                        color = ItaTextSecondary
+                    )
+                }
             }
         }
     }
@@ -282,14 +303,22 @@ private fun HistoryEntryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    Box(
+                        modifier = Modifier
+                            .background(ItaOrangeLight, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = entry.storeName.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                            color = ItaOrange
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = entry.storeName,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ItaTextSecondary
-                    )
-                    Text(
-                        text = "${entry.orderShortCode} · ${entry.dateFormatted}, ${entry.timeFormatted}",
+                        text = "${entry.orderShortCode} · ${formatRelativeDateTime(entry.dateFormatted, entry.timeFormatted)}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
@@ -341,13 +370,54 @@ private fun HistoryEntryCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            if (entry.distanceKm > 0.0) {
+            val distanceLabel =
+                if (entry.distanceKm > 0.0) "${String.format("%.1f", entry.distanceKm)} km" else null
+            val feeLabel =
+                if (entry.deliveryFee > 0.0) "Taxa ${formatBrl(entry.deliveryFee)}" else null
+            val metaLabel = listOfNotNull(distanceLabel, feeLabel).joinToString(" · ")
+            if (metaLabel.isNotEmpty()) {
                 Text(
-                    text = "${String.format("%.1f", entry.distanceKm)} km em linha reta",
+                    text = metaLabel,
                     fontSize = 11.sp,
                     color = ItaTextTertiary
                 )
             }
         }
+    }
+}
+
+private fun formatBrl(value: Double): String =
+    "R$ " + String.format("%.2f", value).replace('.', ',')
+
+/**
+ * Exibe a data de forma relativa e amigavel: "Hoje, 16:14", "Ontem, 16:14"
+ * ou "06/10, 16:14" (com ano reduzido quando for de outro ano).
+ * Espera dateFormatted no formato ISO "yyyy-MM-dd".
+ */
+private fun formatRelativeDateTime(dateFormatted: String, timeFormatted: String): String {
+    return try {
+        val parts = dateFormatted.split("-")
+        if (parts.size != 3) return "$dateFormatted, $timeFormatted"
+        val today = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val date = java.util.Calendar.getInstance().apply {
+            set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val diffDays = ((today.timeInMillis - date.timeInMillis) / 86_400_000L).toInt()
+        val label = when {
+            diffDays <= 0 -> "Hoje"
+            diffDays == 1 -> "Ontem"
+            date.get(java.util.Calendar.YEAR) == today.get(java.util.Calendar.YEAR) ->
+                "${parts[2]}/${parts[1]}"
+            else -> "${parts[2]}/${parts[1]}/${parts[0].takeLast(2)}"
+        }
+        "$label, $timeFormatted"
+    } catch (_: Exception) {
+        "$dateFormatted, $timeFormatted"
     }
 }

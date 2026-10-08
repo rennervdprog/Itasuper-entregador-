@@ -48,6 +48,7 @@ import com.example.ui.theme.ItaOrange
 fun OnlineHeroToggle(
     isOnline: Boolean,
     isRouteActive: Boolean = false,
+    visibleStoresCount: Int = 0,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -148,7 +149,11 @@ fun OnlineHeroToggle(
                     Text(
                         text = when {
                             isRouteActive -> "Disponibilidade para novos pedidos pausada até concluir a rota"
-                            isOnline -> "Recebendo pedidos das suas lojas"
+                            isOnline -> if (visibleStoresCount > 0) {
+                                "Recebendo pedidos de $visibleStoresCount ${if (visibleStoresCount == 1) "loja vinculada" else "lojas vinculadas"}"
+                            } else {
+                                "Recebendo pedidos das suas lojas"
+                            }
                             else -> "Toque para começar a receber pedidos"
                         },
                         color = if (isOnline) Color(0xFFE8F5E9) else Color(0xFF94A3B8),
