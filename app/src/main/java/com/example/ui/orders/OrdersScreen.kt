@@ -583,10 +583,19 @@ private fun OfflineEmptyState(
         Button(
             onClick = onGoOnline,
             colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.testTag("btn_go_online_empty")
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+            modifier = Modifier
+                .height(48.dp)
+                .testTag("btn_go_online_empty")
         ) {
-            Text("Ficar Online Agora", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Ficar Online Agora",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1
+            )
         }
     }
 }

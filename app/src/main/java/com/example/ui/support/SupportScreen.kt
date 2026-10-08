@@ -113,7 +113,7 @@ fun SupportScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Suporte ao Entregador",
                                 fontSize = 20.sp,
@@ -127,21 +127,31 @@ fun SupportScreen(
                             )
                         }
 
+                        Spacer(modifier = Modifier.width(12.dp))
+
                         Button(
                             onClick = { viewModel.openNewTicketDialog() },
                             colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            modifier = Modifier.testTag("btn_new_support_ticket")
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+                            modifier = Modifier
+                                .height(48.dp)
+                                .testTag("btn_new_support_ticket")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Novo Chamado", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Novo Chamado",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
