@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Info
@@ -65,7 +64,6 @@ fun HistoryScreen(
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val entries by viewModel.historyEntries.collectAsState()
     val summary by viewModel.historySummary.collectAsState()
-    val totalFees = entries.sumOf { it.deliveryFee }
 
     val filters = listOf("7 dias", "30 dias", "Tudo")
 
@@ -132,17 +130,6 @@ fun HistoryScreen(
                             modifier = Modifier.weight(1f),
                             testTag = "metric_history_rides"
                         )
-                        if (totalFees > 0.0) {
-                            HistoryMetricCard(
-                                title = "Taxas do período",
-                                value = formatBrl(totalFees),
-                                subtitle = "a acertar com a loja",
-                                icon = Icons.Default.AttachMoney,
-                                iconColor = ItaGreenDark,
-                                modifier = Modifier.weight(1f),
-                                testTag = "metric_history_fees"
-                            )
-                        }
                     }
 
                     if (summary.totalDistanceKm > 0.0) {
@@ -370,14 +357,9 @@ private fun HistoryEntryCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            val distanceLabel =
-                if (entry.distanceKm > 0.0) "${String.format("%.1f", entry.distanceKm)} km" else null
-            val feeLabel =
-                if (entry.deliveryFee > 0.0) "Taxa ${formatBrl(entry.deliveryFee)}" else null
-            val metaLabel = listOfNotNull(distanceLabel, feeLabel).joinToString(" · ")
-            if (metaLabel.isNotEmpty()) {
+            if (entry.distanceKm > 0.0) {
                 Text(
-                    text = metaLabel,
+                    text = "${String.format("%.1f", entry.distanceKm)} km",
                     fontSize = 11.sp,
                     color = ItaTextTertiary
                 )
@@ -385,9 +367,6 @@ private fun HistoryEntryCard(
         }
     }
 }
-
-private fun formatBrl(value: Double): String =
-    "R$ " + String.format("%.2f", value).replace('.', ',')
 
 /**
  * Exibe a data de forma relativa e amigavel: "Hoje, 16:14", "Ontem, 16:14"
