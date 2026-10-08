@@ -39,22 +39,23 @@ fun MetricsRow(
     ) {
         MetricItem(
             title = "Na Rota",
-            value = String.format("%02d", activeCount),
+            value = activeCount.toString(),
             valueColor = if (activeCount > 0) ItaOrange else ItaSlate900,
             modifier = Modifier.weight(1f),
             testTag = "metric_active_route"
         )
         MetricItem(
             title = "Disponíveis",
-            value = String.format("%02d", availableCount),
+            value = availableCount.toString(),
             valueColor = if (availableCount > 0) ItaSlate900 else ItaSlate500,
             modifier = Modifier.weight(1f),
             testTag = "metric_available_orders"
         )
         MetricItem(
             title = "Concluídas",
-            value = String.format("%02d", completedCount),
+            value = completedCount.toString(),
             valueColor = if (completedCount > 0) ItaSlate900 else ItaSlate500,
+            subtitle = "no total",
             modifier = Modifier.weight(1f),
             testTag = "metric_completed_orders"
         )
@@ -67,6 +68,7 @@ private fun MetricItem(
     value: String,
     valueColor: Color,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     testTag: String = ""
 ) {
     Column(
@@ -91,6 +93,14 @@ private fun MetricItem(
             fontWeight = FontWeight.Bold,
             color = valueColor
         )
+        if (subtitle != null) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 10.sp,
+                color = ItaSlate500
+            )
+        }
     }
 }
 

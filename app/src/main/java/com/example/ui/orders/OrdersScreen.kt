@@ -218,6 +218,7 @@ fun OrdersScreen(
                         OnlineHeroToggle(
                             isOnline = availability.isOnline,
                             isRouteActive = activeRouteOrders.isNotEmpty(),
+                            visibleStoresCount = acceptedStores.size,
                             onToggle = { viewModel.toggleAvailability(it) }
                         )
 
@@ -622,7 +623,7 @@ private fun OnlineEmptyState(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Quando uma loja parceira liberar um pedido, ele aparecerá aqui automaticamente.",
+            text = "Quando uma das suas lojas vinculadas liberar um pedido, ele aparece aqui automaticamente.",
             fontSize = 13.sp,
             color = ItaTextSecondary,
             textAlign = TextAlign.Center,
