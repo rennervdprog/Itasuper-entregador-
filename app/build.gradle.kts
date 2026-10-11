@@ -21,8 +21,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 41
-    versionName = "2.4.1-waze-endereco"
+    versionCode = 42
+    versionName = "2.4.1-waze-endereco-1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
