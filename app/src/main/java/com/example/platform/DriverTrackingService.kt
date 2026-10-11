@@ -158,7 +158,7 @@ class DriverTrackingService : Service() {
             heading = location.bearing.toDouble()
         )
         val delivered = runCatching {
-            ItaSuperSupabase.client.from("driver_locations").insert(payload)
+            ItaSuperSupabase.client.from("driver_locations").upsert(payload, onConflict = "driver_user_id")
         }.isSuccess
         if (!delivered) {
             DriverTrackingDatabase.get(this).locations().upsert(
