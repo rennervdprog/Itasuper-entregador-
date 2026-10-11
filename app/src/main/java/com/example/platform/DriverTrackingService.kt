@@ -93,6 +93,10 @@ class DriverTrackingService : Service() {
     private var activeShortCode: String = ""
     private var arrivalAlertSent = false
 
+    private val prefs by lazy {
+        getSharedPreferences(PREFS_TRACKING, MODE_PRIVATE)
+    }
+
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val orderId = activeOrderId ?: return
@@ -111,9 +115,17 @@ class DriverTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val requestedOrderId = intent?.getStringExtra(EXTRA_ORDER_ID) ?: activeOrderId
+        // Restaura o order ID persistido (sobrevive a reinicializações do serviço)
+        val persistedOrderId = prefs.getString(KEY_ACTIVE_ORDER_ID, null)
+        val requestedOrderId = intent?.getStringExtra(EXTRA_ORDER_ID) ?: activeOrderId ?: persistedOrderId
         if (requestedOrderId != activeOrderId) arrivalAlertSent = false
         activeOrderId = requestedOrderId
+        // Persiste para sobreviver a reinicializações
+        if (requestedOrderId != null) {
+            prefs.edit().putString(KEY_ACTIVE_ORDER_ID, requestedOrderId).apply()
+        } else {
+            prefs.edit().remove(KEY_ACTIVE_ORDER_ID).apply()
+        }
         if (intent?.hasExtra(EXTRA_DESTINATION_LATITUDE) == true) {
             destinationLatitude = intent.getDoubleExtra(EXTRA_DESTINATION_LATITUDE, Double.NaN).takeIf { it.isFinite() }
             destinationLongitude = intent.getDoubleExtra(EXTRA_DESTINATION_LONGITUDE, Double.NaN).takeIf { it.isFinite() }
@@ -214,6 +226,8 @@ class DriverTrackingService : Service() {
         private const val EXTRA_DESTINATION_LONGITUDE = "destination_longitude"
         private const val EXTRA_DESTINATION_ADDRESS = "destination_address"
         private const val EXTRA_ORDER_SHORT_CODE = "order_short_code"
+        private const val PREFS_TRACKING = "driver_tracking"
+        private const val KEY_ACTIVE_ORDER_ID = "active_order_id"
 
         fun start(context: Context, order: DeliveryOrder) {
             ContextCompat.startForegroundService(
@@ -228,6 +242,9 @@ class DriverTrackingService : Service() {
         }
 
         fun stop(context: Context) {
+            // Limpa o order ID persistido ao finalizar a entrega
+            context.getSharedPreferences(PREFS_TRACKING, MODE_PRIVATE)
+                .edit().remove(KEY_ACTIVE_ORDER_ID).apply()
             context.stopService(Intent(context, DriverTrackingService::class.java))
         }
     }
