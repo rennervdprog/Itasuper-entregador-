@@ -540,7 +540,7 @@ fun ProfileScreen(
                     .height(48.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.MyLocation,
+                    imageVector = Icons.Filled.MyLocation,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
