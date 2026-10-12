@@ -141,17 +141,13 @@ fun GpsDebugScreen(onBack: () -> Unit) {
             // TODO(DEBUG): REMOVER ANTES DE PUBLICAR
             Button(
                 onClick = {
-                    val prefs = context.getSharedPreferences("driver_tracking", android.content.Context.MODE_PRIVATE)
-                    val orderId = prefs.getString("active_order_id", null)
-                    if (orderId != null) {
-                        GpsDebugLog.add("Reiniciando tracking para pedido $orderId...")
-                        val intent = android.content.Intent(context, com.example.platform.DriverTrackingService::class.java)
-                        intent.putExtra("extra_order_id", orderId)
-                        androidx.core.content.ContextCompat.startForegroundService(context, intent)
-                        GpsDebugLog.add("Serviço reiniciado!")
-                    } else {
-                        GpsDebugLog.add("Nenhum pedido ativo persistido")
-                    }
+                    // Usa o pedido ativo conhecido (CA7E3621)
+                    val orderId = "ca7e3621-a722-4fd0-88f1-02f53f8e9f8f"
+                    GpsDebugLog.add("Reiniciando tracking para pedido $orderId...")
+                    val intent = android.content.Intent(context, com.example.platform.DriverTrackingService::class.java)
+                    intent.putExtra("order_id", orderId)
+                    androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                    GpsDebugLog.add("Serviço reiniciado!")
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
