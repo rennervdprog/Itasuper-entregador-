@@ -81,7 +81,10 @@ data class DriverLocationInsert(
     val longitude: Double,
     val accuracy: Double? = null,
     val speed: Double? = null,
-    val heading: Double? = null
+    val heading: Double? = null,
+    @SerialName("updated_at") val updatedAt: String = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }.format(java.util.Date())
 )
 
 class DriverTrackingService : Service() {

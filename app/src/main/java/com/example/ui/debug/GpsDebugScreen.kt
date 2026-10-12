@@ -115,16 +115,18 @@ fun GpsDebugScreen(onBack: () -> Unit) {
                                 GpsDebugLog.add("FALHA: sem usuário autenticado, upsert impossível")
                                 return@launch
                             }
-                            val payload = mapOf(
-                                "driver_user_id" to userId,
-                                "latitude" to -23.55,
-                                "longitude" to -46.63
-                            )
-                            GpsDebugLog.add("Enviando upsert de teste para driver_locations...")
-                            ItaSuperSupabase.client.from("driver_locations").upsert(payload) {
-                                onConflict = "driver_user_id"
+                            GpsDebugLog.add("Testando leitura de driver_locations...")
+                            val result = try {
+                                ItaSuperSupabase.client.from("driver_locations")
+                                    .select {
+                                        filter { eq("driver_user_id", userId) }
+                                    }
+                                    .decodeList<Map<String, String>>()
+                                "SUCESSO: leitura funcionou! (auth + RLS + rede OK)"
+                            } catch (t: Throwable) {
+                                "FALHA na leitura: ${t::class.simpleName}: ${t.message}"
                             }
-                            GpsDebugLog.add("SUCESSO: upsert de teste funcionou!")
+                            GpsDebugLog.add(result)
                         } catch (t: Throwable) {
                             GpsDebugLog.add("FALHA no upsert de teste: ${t::class.simpleName}: ${t.message}")
                         }
