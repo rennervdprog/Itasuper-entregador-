@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.remote.ItaSuperSupabase
 import com.example.platform.DriverTrackingDatabase
 import com.example.platform.GpsDebugLog
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
