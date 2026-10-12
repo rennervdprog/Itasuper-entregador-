@@ -531,6 +531,29 @@ fun ProfileScreen(
                 }
             }
 
+            // TODO(DEBUG): REMOVER ANTES DE PUBLICAR - botão temporário para debug do GPS
+            OutlinedButton(
+                onClick = { com.example.ui.debug.GpsDebugActivity.open(context) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Debug GPS (temporário)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Logout Action
             Button(
                 onClick = { viewModel.logout(onLogout) },
