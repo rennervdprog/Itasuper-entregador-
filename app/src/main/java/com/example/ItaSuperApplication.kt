@@ -1,6 +1,5 @@
 package com.example
 
-import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -23,23 +22,15 @@ class ItaSuperApplication : Application() {
         val prefs = getSharedPreferences("driver_tracking", Context.MODE_PRIVATE)
         val orderId = prefs.getString("active_order_id", null) ?: return
 
-        if (isTrackingServiceRunning()) {
-            Log.i(TAG, "Tracking já está rodando para $orderId")
-            return
-        }
-
-        Log.i(TAG, "Reiniciando tracking para pedido ativo $orderId")
+        // Sempre tenta iniciar - se já estiver rodando, o onStartCommand só é chamado de novo (inofensivo)
+        Log.i(TAG, "Garantindo tracking ativo para pedido $orderId")
         val intent = Intent(this, DriverTrackingService::class.java).apply {
             putExtra("order_id", orderId)
         }
-        ContextCompat.startForegroundService(this, intent)
-    }
-
-    private fun isTrackingServiceRunning(): Boolean {
-        val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        @Suppress("DEPRECATION")
-        return manager.getRunningServices(Integer.MAX_VALUE).any {
-            it.service.className == DriverTrackingService::class.java.name
+        runCatching {
+            ContextCompat.startForegroundService(this, intent)
+        }.onFailure {
+            Log.e(TAG, "Falha ao reiniciar tracking", it)
         }
     }
 
