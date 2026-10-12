@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,6 +80,22 @@ fun DashboardScreen(
     var selectedTab by remember { mutableStateOf(DashboardTab.ORDERS) }
     val activeOrders by ordersViewModel.activeRouteOrders.collectAsState()
     val availableOrders by ordersViewModel.availableOrders.collectAsState()
+    val context = LocalContext.current
+
+    // Garante que o tracking GPS está rodando se houver entrega ativa.
+    // Cobre o caso do serviço ter morrido (bateria, memória) enquanto o app estava em segundo plano.
+    LaunchedEffect(activeOrders) {
+        val activeOrder = activeOrders.firstOrNull()
+        if (activeOrder != null) {
+            runCatching {
+                val intent = android.content.Intent(context, com.example.platform.DriverTrackingService::class.java).apply {
+                    putExtra("order_id", activeOrder.id)
+                }
+                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            }
+        }
+    }
+
     val pendingInviteCount = linkViewModel.links.collectAsState().value.count {
         it.status == DriverLinkStatus.PENDING
     }
