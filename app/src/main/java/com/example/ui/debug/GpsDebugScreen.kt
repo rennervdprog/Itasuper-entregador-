@@ -138,6 +138,27 @@ fun GpsDebugScreen(onBack: () -> Unit) {
                 Text("Testar upsert manual")
             }
 
+            // TODO(DEBUG): REMOVER ANTES DE PUBLICAR
+            Button(
+                onClick = {
+                    val prefs = context.getSharedPreferences("driver_tracking", android.content.Context.MODE_PRIVATE)
+                    val orderId = prefs.getString("active_order_id", null)
+                    if (orderId != null) {
+                        GpsDebugLog.add("Reiniciando tracking para pedido $orderId...")
+                        val intent = android.content.Intent(context, com.example.platform.DriverTrackingService::class.java)
+                        intent.putExtra("extra_order_id", orderId)
+                        androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                        GpsDebugLog.add("Serviço reiniciado!")
+                    } else {
+                        GpsDebugLog.add("Nenhum pedido ativo persistido")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+            ) {
+                Text("Reiniciar tracking")
+            }
+
             Text(
                 text = "Logs (${logs.size})",
                 style = MaterialTheme.typography.titleSmall
