@@ -109,6 +109,7 @@ data class PaymentSummary(
         get() {
             val normalized = method.trim().lowercase()
             return when {
+                normalized.contains("maquininha") || normalized.contains("pix_machine") -> "Pix na maquininha — levar maquininha"
                 normalized.contains("pix") -> "Pix direto — já pago"
                 normalized.contains("cart") || normalized.contains("crédito") || normalized.contains("credito") || normalized.contains("débito") || normalized.contains("debito") -> "Cartão — levar maquininha"
                 normalized.contains("dinheiro") || normalized.contains("cash") -> "Dinheiro — cobrar na entrega"

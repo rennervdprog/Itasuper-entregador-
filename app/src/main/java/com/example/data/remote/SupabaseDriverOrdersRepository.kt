@@ -339,7 +339,7 @@ class SupabaseDriverOrdersRepository(
                 destinationLongitude = destinationLongitude,
                 destinationPrecision = destinationPrecision,
                 deliveryFee = row.deliveryFee ?: 0.0,
-                driverEarnings = row.deliveryFee ?: 0.0,
+                driverEarnings = 0.0, // delivery_fee não é ganho do entregador (regra PR #3)
                 estimatedDistanceKm = distanceKm ?: 0.0,
                 estimatedTimeMinutes = 0,
                 items = deliveryItems,
@@ -347,7 +347,10 @@ class SupabaseDriverOrdersRepository(
                     method = row.paymentMethod ?: "Não informado",
                     amount = row.totalPrice ?: row.subtotal ?: 0.0,
                     changeFor = row.changeFor,
-                    isPaidOnline = row.paymentMethod?.contains("pix", ignoreCase = true) == true
+                    isPaidOnline = row.paymentMethod?.let { pm ->
+                        val n = pm.lowercase()
+                        n.contains("pix") && !n.contains("maquininha") && !n.contains("pix_machine")
+                    } == true
                 ),
                 customerPin = row.deliveryPin.orEmpty(),
                 isPinPreFilledAllowed = storeRow?.driverPinAutofill == true,
