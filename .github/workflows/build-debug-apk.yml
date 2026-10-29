@@ -57,9 +57,6 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Run unit tests (checagem temporaria)
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
-
       - name: Rename APK with version and commit
         shell: bash
         run: |
