@@ -7,6 +7,7 @@ import com.example.data.model.OfflineDeliveryConfirmation
 import com.example.data.model.OrderDeliveryStatus
 import com.example.data.model.OrderDisplayCode
 import com.example.data.model.PaymentSummary
+import com.example.data.model.isOnlinePaidMethod
 import com.example.ItaSuperApplication
 import com.example.data.local.OfflineDeliveryQueue
 import com.example.data.model.LinkedStore
@@ -30,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +65,15 @@ class SupabaseDriverOrdersRepository(
     private var channel: RealtimeChannel? = null
     private val realtimeJobs = mutableListOf<Job>()
     private var observedStoreIds: Set<String> = emptySet()
+
+    // Coalescência do Realtime (auditoria M12): uma rajada de mudanças em
+    // orders disparava um refreshAll() completo POR EVENTO. Agora os
+    // eventos pedem um único refresh compartilhado; o primeiro Insert da
+    // rajada guarda a foto (ids disponíveis + rota ativa) p/ o aviso de
+    // pedido novo continuar com o mesmo comportamento.
+    private var pendingRefreshJob: Job? = null
+    private var pendingInsertBaseline: Set<String>? = null
+    private var pendingInsertHadActiveRoute: Boolean = false
 
     init {
         // A primeira sincronização não pode derrubar o aplicativo se rede, RLS
@@ -123,7 +134,14 @@ class SupabaseDriverOrdersRepository(
             ?: error("Pedido não encontrado na rota ativa.")
 
         if (!NetworkMonitor.isOnline(ItaSuperApplication.appContext)) {
-            if (activeOrder.customerPin.isNotBlank() && activeOrder.customerPin != normalizedPin) {
+            // Sem o código do cliente baixado neste aparelho, não há como
+            // validar a confirmação offline: aceitar qualquer PIN seria um
+            // carimbo sem prova (auditoria A3). Nesse caso a confirmação
+            // exige conexão — o pedido permanece na rota do motoboy.
+            if (activeOrder.customerPin.isBlank()) {
+                error("Sem o código do cliente neste aparelho, a confirmação precisa de conexão. Conecte-se à internet para confirmar esta entrega.")
+            }
+            if (activeOrder.customerPin != normalizedPin) {
                 error("PIN incorreto. Verifique o código com o cliente.")
             }
             offlineQueue.enqueue(
@@ -219,7 +237,14 @@ class SupabaseDriverOrdersRepository(
 
         availableOrders.value = available
         activeRouteOrders.value = active
-        todayCompletedCount.value = rows.count { it.driverId == userId && it.status == "finalizado" }
+        // A RPC de finalização grava 'finalizado' p/ vínculo aceito, mas
+        // 'entregue' p/ motoboy sem vínculo aceito com pagamento físico —
+        // os dois contam como entrega concluída (auditoria A4).
+        todayCompletedCount.value = rows.count {
+            it.driverId == userId &&
+                (it.status.equals("finalizado", ignoreCase = true) ||
+                    it.status.equals("entregue", ignoreCase = true))
+        }
         availabilityRepository.setRouteActive(active.isNotEmpty())
         ensureRealtime(userId, storeIds, forceReconnect = forceRealtimeReconnect)
     }
@@ -242,7 +267,7 @@ class SupabaseDriverOrdersRepository(
 
         val stores = supabase
             .from("stores_driver_view")
-            .select(columns = Columns.list("id", "name", "address_street", "address_neighborhood", "address_city", "latitude", "longitude", "driver_pin_autofill")) {
+            .select(columns = Columns.list("id", "name", "address_street", "address_neighborhood", "address_city", "latitude", "longitude")) {
                 filter { isIn("id", storeIds) }
             }
             .decodeList<StoreRow>()
@@ -339,7 +364,6 @@ class SupabaseDriverOrdersRepository(
                 destinationLongitude = destinationLongitude,
                 destinationPrecision = destinationPrecision,
                 deliveryFee = row.deliveryFee ?: 0.0,
-                driverEarnings = 0.0, // delivery_fee não é ganho do entregador (regra PR #3)
                 estimatedDistanceKm = distanceKm ?: 0.0,
                 estimatedTimeMinutes = 0,
                 items = deliveryItems,
@@ -347,17 +371,15 @@ class SupabaseDriverOrdersRepository(
                     method = row.paymentMethod ?: "Não informado",
                     amount = row.totalPrice ?: row.subtotal ?: 0.0,
                     changeFor = row.changeFor,
-                    isPaidOnline = row.paymentMethod?.let { pm ->
-                        val n = pm.lowercase()
-                        n.contains("pix") && !n.contains("maquininha") && !n.contains("pix_machine")
-                    } == true
+                    // Só pix/pix_direto são pagos online; pix_machine e
+                    // maquininha_pix são cobrados na entrega (auditoria A1).
+                    isPaidOnline = isOnlinePaidMethod(row.paymentMethod)
                 ),
                 customerPin = row.deliveryPin.orEmpty(),
-                isPinPreFilledAllowed = storeRow?.driverPinAutofill == true,
-                notes = null,
                 createdAt = row.createdAt.orEmpty(),
-                acceptedAt = if (row.driverId != null) row.createdAt else null,
-                departedAt = if (row.status == "saiu_entrega" || row.status == "em_transito") row.createdAt else null,
+                // Sem acceptedAt/departedAt: o schema não expõe esses marcos
+                // e os campos antigos eram fabricados a partir de createdAt
+                // (auditoria B4). deliveredAt vem de confirmed_at, que é real.
                 deliveredAt = row.confirmedAt
             )
         }
@@ -385,12 +407,44 @@ class SupabaseDriverOrdersRepository(
         return earthRadiusKm * 2 * atan2(sqrt(a), sqrt(1 - a))
     }
 
-    private suspend fun updateOrderStatus(orderId: String, status: String) {
-        supabase
-            .from("orders")
-            .update({ set("status", status) }) {
-                filter { eq("id", orderId) }
+    // updateOrderStatus() foi removido: escrevia orders.status direto, fora
+    // das RPCs de aceite/partida/finalização, e não tinha nenhum chamador
+    // (auditoria B5).
+
+    /**
+     * Janela de coalescência de 600ms: eventos que chegam com um refresh já
+     * agendado são absorvidos por ele. O aviso de pedido novo usa a foto
+     * capturada no primeiro Insert da rajada (antes de qualquer refresh
+     * dela) e só dispara sem rota ativa — igual ao comportamento anterior,
+     * só que com 1 refresh por rajada em vez de 1 por evento.
+     */
+    private fun requestCoalescedRefresh(isInsert: Boolean) {
+        if (isInsert && pendingInsertBaseline == null) {
+            pendingInsertBaseline = availableOrders.value.map { it.id }.toSet()
+            pendingInsertHadActiveRoute = activeRouteOrders.value.isNotEmpty()
+        }
+        if (pendingRefreshJob?.isActive == true) return
+        pendingRefreshJob = scope.launch {
+            delay(600)
+            val baseline = pendingInsertBaseline
+            val hadActiveRoute = pendingInsertHadActiveRoute
+            pendingInsertBaseline = null
+            runCatching { refreshAll() }
+            if (baseline != null && !hadActiveRoute) {
+                val newAvailableOrder = availableOrders.value.firstOrNull { it.id !in baseline }
+                newAvailableOrder?.let { order ->
+                    runCatching {
+                        DriverNotificationHelper.showIncomingOrder(
+                            context = ItaSuperApplication.appContext,
+                            orderId = order.id,
+                            storeName = order.store.tradeName,
+                            neighborhood = order.addressNeighborhood,
+                            shortCode = order.shortCode
+                        )
+                    }
+                }
             }
+        }
     }
 
     private fun ensureRealtime(userId: String, storeIds: List<String>, forceReconnect: Boolean = false) {
@@ -400,6 +454,9 @@ class SupabaseDriverOrdersRepository(
 
         realtimeJobs.forEach { it.cancel() }
         realtimeJobs.clear()
+        pendingRefreshJob?.cancel()
+        pendingRefreshJob = null
+        pendingInsertBaseline = null
         val previous = channel
         channel = null
         observedStoreIds = expected
@@ -415,26 +472,7 @@ class SupabaseDriverOrdersRepository(
             realtimeJobs += scope.launch {
                 runCatching {
                     changes.collect { action ->
-                        val knownAvailableIds = availableOrders.value.map { it.id }.toSet()
-                        val hasActiveRoute = activeRouteOrders.value.isNotEmpty()
-                        runCatching { refreshAll() }
-
-                        if (action is PostgresAction.Insert && !hasActiveRoute) {
-                            val newAvailableOrder = availableOrders.value.firstOrNull {
-                                it.id !in knownAvailableIds
-                            }
-                            newAvailableOrder?.let { order ->
-                                runCatching {
-                                    DriverNotificationHelper.showIncomingOrder(
-                                        context = ItaSuperApplication.appContext,
-                                        orderId = order.id,
-                                        storeName = order.store.tradeName,
-                                        neighborhood = order.addressNeighborhood,
-                                        shortCode = order.shortCode
-                                    )
-                                }
-                            }
-                        }
+                        requestCoalescedRefresh(isInsert = action is PostgresAction.Insert)
                     }
                 }
             }

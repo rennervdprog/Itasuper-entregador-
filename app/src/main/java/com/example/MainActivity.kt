@@ -10,21 +10,23 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.data.fake.AppContainer
-import com.example.data.model.IncomingOrderAlert
 import com.example.data.remote.ItaSuperSupabase
-import com.example.platform.IncomingOrderOverlay
 import com.example.ui.navigation.AppNavHost
 import com.example.ui.onboarding.DriverPermissionStatus
 import com.example.ui.onboarding.DriverPermissionsScreen
@@ -60,16 +62,38 @@ class MainActivity : FragmentActivity() {
                                 onClose = ::finish
                             )
                         }
-                        permissionStatus.allGranted -> AppNavHost()
                         else -> {
-                            DriverPermissionsScreen(
-                                status = permissionStatus,
-                                onRequestNotifications = ::requestNotificationPermission,
-                                onRequestLocation = ::requestLocationPermission,
-                                onRequestOverlay = ::openOverlaySettings,
-                                onTestOverlay = ::showOverlayTest,
-                                onContinue = { refreshPermissionStatus() }
-                            )
+                            // Permissões obrigatórias são cobradas DEPOIS do
+                            // login (auditoria M7): o NavHost fica sempre
+                            // montado (a SplashScreen roteia Login × Home
+                            // sem destruir a navegação) e a tela de
+                            // permissões entra como camada bloqueante por
+                            // cima somente com sessão ativa e permissão
+                            // faltando. Sem sessão, ninguém é travado antes
+                            // de entrar/cadastrar.
+                            val currentUser by AppContainer.authRepository.getCurrentUser()
+                                .collectAsState(initial = null)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AppNavHost()
+                                if (currentUser != null && !permissionStatus.allGranted) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) { }
+                                    ) {
+                                        DriverPermissionsScreen(
+                                            status = permissionStatus,
+                                            onRequestNotifications = ::requestNotificationPermission,
+                                            onRequestLocation = ::requestLocationPermission,
+                                            onRequestOverlay = ::openOverlaySettings,
+                                            onContinue = { refreshPermissionStatus() }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -121,33 +145,9 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    private fun showOverlayTest() {
-        val shown = IncomingOrderOverlay.show(
-            context = applicationContext,
-            orderId = "overlay-test",
-            storeName = "Loja de teste ItaSuper",
-            neighborhood = "Painel visual",
-            shortCode = "#11F08E4A",
-            alert = IncomingOrderAlert(
-                orderId = "overlay-test",
-                shortCode = "#11F08E4A",
-                storeName = "Loja de teste ItaSuper",
-                pickupAddress = "Avenida Brasil, 524 · Centro · Araruama",
-                destinationAddress = "Rua Professor Nunes Martins · Ponte dos Leites",
-                neighborhood = "Ponte dos Leites",
-                itemCount = 3,
-                paymentMethod = "Pix",
-                totalLabel = "R$ 42,90"
-            )
-        )
-        if (!shown) {
-            Toast.makeText(
-                this,
-                IncomingOrderOverlay.lastDiagnostic(),
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
+    // A tela de teste de overlay com dados de exemplo ("Loja de teste
+    // ItaSuper", "R$ 42,90") foi removida de produção (auditoria M7): o
+    // overlay real continua exercitado pelas chamadas de verdade.
 
     private fun openOverlaySettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

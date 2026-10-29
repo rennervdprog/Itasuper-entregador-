@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryOrder
+import com.example.data.model.formatBrl
 import com.example.ui.components.DriverHelmetMark
 import com.example.data.model.NavigationPreference
 import com.example.data.model.OrderDeliveryStatus
@@ -515,15 +516,6 @@ fun ActiveDeliveryCard(
                 color = ItaSlate700
             )
 
-            order.notes?.let { note ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Observação: $note",
-                    fontSize = 11.sp,
-                    color = ItaSlate500
-                )
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = ItaDivider)
             Spacer(modifier = Modifier.height(12.dp))
@@ -650,7 +642,7 @@ fun ActiveDeliveryCard(
                                 color = ItaSlate900
                             )
                             Text(
-                                text = "R$ ${String.format("%.2f", item.quantity * item.unitPrice)}",
+                                text = formatBrl(item.quantity * item.unitPrice),
                                 fontSize = 12.sp,
                                 color = ItaSlate500
                             )

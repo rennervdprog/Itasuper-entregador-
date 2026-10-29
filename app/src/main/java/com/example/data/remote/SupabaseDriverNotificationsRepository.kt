@@ -5,19 +5,19 @@ import com.example.data.repository.DriverNotificationsRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class SupabaseDriverNotificationsRepository : DriverNotificationsRepository {
     private val supabase = ItaSuperSupabase.client
 
-    // O app não possui medição de conectividade em tempo real. Não exibimos um
-    // estado "estável" fixo que possa contradizer uma sincronização em retomada.
-    override fun getConnectivityBannerVisible(): Flow<Boolean> = flow {
-        emit(false)
-    }
-
-    override suspend fun dismissConnectivityBanner() = Unit
+    // getConnectivityBannerVisible/dismissConnectivityBanner removidos
+    // (auditoria B13): emitiam false fixo p/ uma faixa "Sinal de dados
+    // estável" que nunca aparecia — código morto nos dois lados.
 
     override fun getSupportTickets(): Flow<List<SupportTicket>> = flow {
         val userId = supabase.auth.currentUserOrNull()?.id
@@ -40,7 +40,7 @@ class SupabaseDriverNotificationsRepository : DriverNotificationsRepository {
                         description = row.firstMessage,
                         category = row.category,
                         status = row.status.replace('_', ' ').replaceFirstChar(Char::uppercase),
-                        createdAt = row.createdAt.orEmpty()
+                        createdAt = formatTicketDate(row.createdAt)
                     )
                 }
         }.getOrDefault(emptyList())
@@ -61,7 +61,7 @@ class SupabaseDriverNotificationsRepository : DriverNotificationsRepository {
             .insert(
                 SupportTicketInsert(
                     userId = userId,
-                    category = category.ifBlank { "outro" },
+                    category = supportCategoryForDatabase(category),
                     subject = subject.trim(),
                     firstMessage = description.trim()
                 )
@@ -76,7 +76,43 @@ class SupabaseDriverNotificationsRepository : DriverNotificationsRepository {
             description = inserted.firstMessage,
             category = inserted.category,
             status = inserted.status.replace('_', ' ').replaceFirstChar(Char::uppercase),
-            createdAt = inserted.createdAt.orEmpty()
+            createdAt = formatTicketDate(inserted.createdAt)
         )
     }
+
+    /**
+     * A tela exibe categorias amigáveis, mas `support_tickets.category` é o
+     * enum `ticket_category` do banco. Gravar o texto livre faz o Postgres
+     * rejeitar o insert (auditoria C1), então a conversão acontece aqui, na
+     * escrita. Mapeamento das categorias exibidas:
+     * - "Dúvida sobre taxa de entrega"     -> financeiro (taxa/valores do entregador)
+     * - "Problema de endereço ou cliente"  -> entrega (ocorrência durante a entrega)
+     * - "Vínculo com nova loja"            -> conta (vínculo/cadastro do entregador)
+     * - "Cancelamento ou recusa de pedido" -> pedido
+     * - "Outros assuntos" e qualquer texto desconhecido (ou vazio) -> outro
+     */
+    private fun supportCategoryForDatabase(displayCategory: String): String =
+        when (displayCategory.trim()) {
+            "Dúvida sobre taxa de entrega" -> "financeiro"
+            "Problema de endereço ou cliente" -> "entrega"
+            "Vínculo com nova loja" -> "conta"
+            "Cancelamento ou recusa de pedido" -> "pedido"
+            else -> "outro"
+        }
+}
+
+private val TICKET_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+
+/**
+ * O chamado exibia o timestamp ISO cru do banco ("2026-10-29T13:45:00Z").
+ * Formata p/ data/hora local do aparelho (auditoria B4); se o valor não
+ * parsear, devolve o original em vez de esconder a data.
+ */
+private fun formatTicketDate(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    val instant = runCatching { Instant.parse(raw) }.getOrElse {
+        runCatching { OffsetDateTime.parse(raw.replace(' ', 'T')).toInstant() }.getOrNull()
+    } ?: return raw
+    return instant.atZone(ZoneId.systemDefault()).format(TICKET_DATE_FORMATTER)
 }

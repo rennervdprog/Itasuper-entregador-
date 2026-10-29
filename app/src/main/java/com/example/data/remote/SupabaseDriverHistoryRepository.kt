@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.flow
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
@@ -21,8 +23,9 @@ import kotlin.math.sqrt
 
 /**
  * Histórico operacional do motoboy. A fonte de verdade são os próprios pedidos
- * finalizados e atribuídos ao usuário autenticado; dados financeiros não são
- * requisito para registrar uma entrega concluída.
+ * concluídos ('finalizado' ou 'entregue', conforme o vínculo do motoboy com a
+ * loja — auditoria A4) e atribuídos ao usuário autenticado; dados financeiros
+ * não são requisito para registrar uma entrega concluída.
  */
 class SupabaseDriverHistoryRepository : DriverHistoryRepository {
     private val supabase = ItaSuperSupabase.client
@@ -62,7 +65,7 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
             )) {
                 filter {
                     eq("driver_id", userId)
-                    eq("status", "finalizado")
+                    isIn("status", listOf("finalizado", "entregue"))
                 }
             }
             .decodeList<OrderRow>()
@@ -90,8 +93,14 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
                 id = order.id,
                 orderShortCode = OrderDisplayCode.fromOrderId(order.id),
                 storeName = store?.name ?: "Loja ItaSuper",
-                dateFormatted = timestamp?.toString()?.take(10).orEmpty(),
-                timeFormatted = timestamp?.toString()?.drop(11)?.take(5).orEmpty(),
+                // Converte p/ o fuso do aparelho ANTES de formatar: fatiar o
+                // Instant em UTC errava o dia perto da meia-noite (auditoria
+                // M2). dateFormatted segue ISO (yyyy-MM-dd), que é o que a
+                // tela de histórico espera p/ agrupar/relativizar.
+                dateFormatted = timestamp?.atZone(ZoneId.systemDefault())
+                    ?.format(DateTimeFormatter.ISO_LOCAL_DATE).orEmpty(),
+                timeFormatted = timestamp?.atZone(ZoneId.systemDefault())
+                    ?.format(HISTORY_TIME_FORMATTER).orEmpty(),
                 neighborhood = order.neighborhood.orEmpty().ifBlank { "Destino informado" },
                 addressSummary = order.addressDetails.orEmpty(),
                 distanceKm = distance,
@@ -122,3 +131,5 @@ class SupabaseDriverHistoryRepository : DriverHistoryRepository {
         return 2 * radius * asin(sqrt(a))
     }
 }
+
+private val HISTORY_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")

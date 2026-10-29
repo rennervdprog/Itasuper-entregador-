@@ -1,10 +1,13 @@
 package com.example.data.remote
 
+import com.example.ItaSuperApplication
+import com.example.data.local.OfflineDeliveryQueue
 import com.example.data.model.DriverProfile
 import com.example.platform.DriverBiometricAccess
 import com.example.platform.DriverPushRegistration
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.DriverAvailabilityRepository
+import com.example.platform.DriverTrackingService
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -74,7 +77,7 @@ class SupabaseAuthRepository(
         val normalizedEmail = email.trim()
 
         require(normalizedName.length in 3..100) { "Informe seu nome completo." }
-        require(normalizedDocument.length in 11..14) { "Informe um CPF válido." }
+        require(isValidBrazilianDocument(normalizedDocument)) { "Informe um CPF válido." }
         require(normalizedVehicle.length in 3..100) { "Informe o modelo do veículo." }
         require(normalizedWhatsappDigits.length in 10..13) { "Informe um WhatsApp válido com DDD." }
         require(normalizedEmail.contains("@")) { "Informe um e-mail válido." }
@@ -113,6 +116,14 @@ class SupabaseAuthRepository(
         // O logout jamais cancela pedidos em andamento. Ele apenas interrompe a
         // disponibilidade futura antes de invalidar a sessão atual.
         runCatching { availabilityRepository.prepareForLogout() }
+        // A fila offline guarda PINs de cliente da conta que está saindo:
+        // sem limpar, as confirmações pendentes tentariam sincronizar sob a
+        // sessão da PRÓXIMA conta logada no mesmo aparelho (auditoria M6).
+        runCatching { OfflineDeliveryQueue(ItaSuperApplication.appContext).clear() }
+        // Para o rastreio local e apaga a entrega ativa persistida, que é
+        // estado por-usuário (as gravações falhariam sem sessão de qualquer
+        // forma; o pedido no servidor NÃO é cancelado).
+        runCatching { DriverTrackingService.stop(ItaSuperApplication.appContext) }
         supabase.auth.signOut()
         DriverBiometricAccess.clear()
         currentUser.value = null
@@ -152,7 +163,9 @@ class SupabaseAuthRepository(
             }
             .decodeSingle<ProfileRow>()
 
-        check(profile.role == "motoboy" || profile.role == "entregador") {
+        // Sem o ramo role == "entregador": esse valor não existe no enum
+        // partner_role do banco — ramo morto removido (auditoria B9).
+        check(profile.role == "motoboy") {
             "Esta conta não possui acesso de motoboy de loja."
         }
 
@@ -167,5 +180,35 @@ class SupabaseAuthRepository(
             completedDeliveriesCount = 0,
             memberSince = profile.createdAt?.take(10).orEmpty()
         )
+    }
+}
+
+/**
+ * Valida CPF (11 dígitos) e CNPJ (14) pelos dígitos verificadores, e
+ * rejeita sequências de um dígito só. Antes o cadastro conferia apenas o
+ * tamanho, aceitando qualquer 11–14 dígitos (auditoria B12).
+ */
+internal fun isValidBrazilianDocument(digits: String): Boolean {
+    if (digits.length != 11 && digits.length != 14) return false
+    if (!digits.all { it.isDigit() }) return false
+    if (digits.all { it == digits[0] }) return false
+
+    fun verifierDigit(base: String, startWeight: Int): Int {
+        var weight = startWeight
+        var sum = 0
+        for (ch in base) {
+            sum += (ch - '0') * weight
+            weight--
+        }
+        val rest = sum % 11
+        return if (rest < 2) 0 else 11 - rest
+    }
+
+    return if (digits.length == 11) {
+        verifierDigit(digits.substring(0, 9), 10) == digits[9] - '0' &&
+            verifierDigit(digits.substring(0, 10), 11) == digits[10] - '0'
+    } else {
+        verifierDigit(digits.substring(0, 12), 5) == digits[12] - '0' &&
+            verifierDigit(digits.substring(0, 13), 6) == digits[13] - '0'
     }
 }

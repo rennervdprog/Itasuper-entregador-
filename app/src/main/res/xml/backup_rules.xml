@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Regras de backup (auditoria M4). Fora do backup ficam:
+  - TODAS as bases Room (database): a fila offline guarda PINs de cliente
+    e a base de rastreio guarda o histórico de posição do motoboy;
+  - TODAS as SharedPreferences (sharedpref): sessão do Supabase, presença,
+    acesso biométrico e o cache de endereços geocodificados de clientes.
+  O restante (ex.: preferências DataStore, não sensíveis) segue o padrão.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
 </full-backup-content>

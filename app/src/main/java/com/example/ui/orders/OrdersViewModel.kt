@@ -12,7 +12,6 @@ import com.example.data.model.StoreDriverLink
 import com.example.data.repository.DriverAvailabilityRepository
 import com.example.data.repository.DriverLinkRepository
 import com.example.data.repository.DriverLocationRepository
-import com.example.data.repository.DriverNotificationsRepository
 import com.example.data.repository.DriverOrdersRepository
 import com.example.data.repository.DriverProfileRepository
 import com.example.ui.common.DriverUserMessage
@@ -41,8 +40,7 @@ class OrdersViewModel(
     private val availabilityRepository: DriverAvailabilityRepository = AppContainer.availabilityRepository,
     private val linkRepository: DriverLinkRepository = AppContainer.linkRepository,
     private val locationRepository: DriverLocationRepository = AppContainer.locationRepository,
-    private val profileRepository: DriverProfileRepository = AppContainer.profileRepository,
-    private val notificationsRepository: DriverNotificationsRepository = AppContainer.notificationsRepository
+    private val profileRepository: DriverProfileRepository = AppContainer.profileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrdersUiState())
@@ -75,14 +73,8 @@ class OrdersViewModel(
     val todayCompletedCount: StateFlow<Int> = ordersRepository.getTodayCompletedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val isOptimizedRoute: StateFlow<Boolean> = locationRepository.getOptimizedRouteEnabled()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-
     val navPreference: StateFlow<NavigationPreference> = locationRepository.getNavigationPreference()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NavigationPreference.GOOGLE_MAPS)
-
-    val isConnectivityBannerVisible: StateFlow<Boolean> = notificationsRepository.getConnectivityBannerVisible()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val offlineConfirmations: StateFlow<List<OfflineDeliveryConfirmation>> = ordersRepository.getOfflineConfirmations()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -105,12 +97,6 @@ class OrdersViewModel(
 
     fun setTabSegment(segment: Int) {
         _uiState.value = _uiState.value.copy(activeTabSegment = segment)
-    }
-
-    fun toggleOptimizedRoute(enabled: Boolean) {
-        viewModelScope.launch {
-            locationRepository.setOptimizedRouteEnabled(enabled)
-        }
     }
 
     fun setNavPreference(pref: NavigationPreference) {

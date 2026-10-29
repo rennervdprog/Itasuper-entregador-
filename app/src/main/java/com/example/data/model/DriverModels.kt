@@ -1,5 +1,16 @@
 package com.example.data.model
 
+import java.text.NumberFormat
+import java.util.Locale
+
+/**
+ * Formata dinheiro sempre em pt-BR (R$ 1.234,56), igual ao serviço de push.
+ * String.format("%.2f") sem Locale produzia "R$ 12.34" ou "R$ 12,34"
+ * conforme o idioma do aparelho (auditoria B1).
+ */
+fun formatBrl(value: Double): String =
+    NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(value)
+
 /**
  * Representa o perfil cadastrado do motoboy de loja do ItaSuper.
  */
@@ -58,7 +69,6 @@ data class StoreDriverLink(
     val store: LinkedStore,
     val status: DriverLinkStatus,
     val invitedAt: String,
-    val acceptedAt: String? = null,
     val tags: List<String> = emptyList()
 )
 
@@ -91,6 +101,25 @@ data class DriverContact(
 )
 
 /**
+ * PIX na maquininha NÃO é pagamento online: ele é cobrado pelo entregador,
+ * na maquininha, no ato da entrega — apesar de conter "pix" no nome.
+ */
+fun isMachinePixMethod(method: String?): Boolean {
+    val normalized = method?.trim()?.lowercase().orEmpty()
+    return normalized == "pix_machine" || normalized == "maquininha_pix"
+}
+
+/**
+ * Métodos que o cliente já pagou online antes da entrega. Qualquer método
+ * com "pix" no nome NÃO pode ser tratado como pago: `pix_machine` e
+ * `maquininha_pix` são cobrados na entrega (auditoria A1).
+ */
+fun isOnlinePaidMethod(method: String?): Boolean {
+    val normalized = method?.trim()?.lowercase().orEmpty()
+    return normalized == "pix" || normalized == "pix_direto"
+}
+
+/**
  * Resumo do pagamento do pedido pelo cliente.
  */
 data class PaymentSummary(
@@ -101,7 +130,7 @@ data class PaymentSummary(
 ) {
     val displayChangeText: String?
         get() = if (changeFor != null && changeFor > amount) {
-            "Troco para R$ ${String.format("%.2f", changeFor)} (R$ ${String.format("%.2f", changeFor - amount)})"
+            "Troco para ${formatBrl(changeFor)} (${formatBrl(changeFor - amount)})"
         } else null
 
     /** Texto operacional para o entregador, sem alterar o método ou o valor do pedido. */
@@ -109,8 +138,8 @@ data class PaymentSummary(
         get() {
             val normalized = method.trim().lowercase()
             return when {
-                normalized.contains("maquininha") || normalized.contains("pix_machine") -> "Pix na maquininha — levar maquininha"
-                normalized.contains("pix") -> "Pix direto — já pago"
+                isMachinePixMethod(normalized) -> "Pix na maquininha — cobrar na entrega"
+                isOnlinePaidMethod(normalized) -> "Pix direto — já pago"
                 normalized.contains("cart") || normalized.contains("crédito") || normalized.contains("credito") || normalized.contains("débito") || normalized.contains("debito") -> "Cartão — levar maquininha"
                 normalized.contains("dinheiro") || normalized.contains("cash") -> "Dinheiro — cobrar na entrega"
                 else -> method.replace('_', ' ').ifBlank { "Pagamento não informado" }
@@ -150,18 +179,17 @@ data class DeliveryOrder(
     val destinationPrecision: String? = null,
     val addressComplement: String? = null,
     val deliveryFee: Double,
-    val driverEarnings: Double,
+    // NÃO existe campo de "ganho do motoboy" aqui de propósito: o ganho
+    // oficial vive no servidor (store_driver_earnings) e NÃO é a taxa de
+    // entrega do cliente. Um campo populado com deliveryFee era uma
+    // armadilha latente (auditoria M1) e foi removido.
     val estimatedDistanceKm: Double,
     val estimatedTimeMinutes: Int,
     val items: List<DeliveryItem>,
     val payment: PaymentSummary,
     val customerPin: String = "4821",
-    val isPinPreFilledAllowed: Boolean = false,
     val stopOrder: Int = 1,
-    val notes: String? = null,
-    val acceptedAt: String? = null,
     val createdAt: String = "Hoje, 14:15",
-    val departedAt: String? = null,
     val deliveredAt: String? = null
 ) {
     val fullAddress: String
@@ -202,7 +230,10 @@ data class OfflineDeliveryConfirmation(
     val shortCode: String,
     val pin: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    /** Último erro de sincronização persistido (código do servidor, ex.:
+     * "invalid_pin"); nulo quando a tentativa nunca falhou. */
+    val lastError: String? = null
 )
 
 /**

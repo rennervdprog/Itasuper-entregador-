@@ -50,11 +50,6 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
-        <!-- TODO(DEBUG): REMOVER ANTES DE PUBLICAR -->
-        <activity
-            android:name=".ui.debug.GpsDebugActivity"
-            android:exported="false" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"

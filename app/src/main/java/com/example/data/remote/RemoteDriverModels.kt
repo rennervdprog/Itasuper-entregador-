@@ -44,8 +44,7 @@ data class StoreRow(
     @SerialName("address_neighborhood") val addressNeighborhood: String? = null,
     @SerialName("address_city") val addressCity: String? = null,
     val latitude: Double? = null,
-    val longitude: Double? = null,
-    @SerialName("driver_pin_autofill") val driverPinAutofill: Boolean? = null
+    val longitude: Double? = null
 )
 
 @Serializable

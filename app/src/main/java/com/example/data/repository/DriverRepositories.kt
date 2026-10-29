@@ -87,8 +87,6 @@ interface DriverLocationRepository {
 }
 
 interface DriverNotificationsRepository {
-    fun getConnectivityBannerVisible(): Flow<Boolean>
-    suspend fun dismissConnectivityBanner()
     fun getSupportTickets(): Flow<List<SupportTicket>>
     suspend fun createSupportTicket(subject: String, category: String, description: String): Result<SupportTicket>
 }
