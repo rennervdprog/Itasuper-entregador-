@@ -25,9 +25,7 @@ class GreetingScreenshotTest {
     composeTestRule.setContent {
       ItaSuperTheme {
         SplashScreen(
-          onNavigateToLogin = {},
-          onNavigateToOnboarding = {},
-          onNavigateToDashboard = {}
+          onNavigateToLogin = { _ -> }
         )
       }
     }

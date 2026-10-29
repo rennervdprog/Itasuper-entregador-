@@ -73,7 +73,6 @@ import android.provider.Settings
 import android.widget.Toast
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.StoreDriverLink
-import com.example.data.model.IncomingOrderAlert
 import com.example.data.model.NavigationPreference
 import com.example.platform.AddressGeocodingCache
 import com.example.platform.BrazilianMunicipality
@@ -344,7 +343,7 @@ fun ProfileScreen(
                                         color = ItaTextPrimary
                                     )
                                     Text(
-                                        text = "${link.store.neighborhood} · Desde ${link.acceptedAt ?: link.invitedAt}",
+                                        text = "${link.store.neighborhood} · Desde ${link.invitedAt.take(10)}",
                                         fontSize = 11.sp,
                                         color = ItaTextSecondary
                                     )
@@ -472,7 +471,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = if (IncomingOrderOverlay.isAllowed(context)) {
-                            "Sobreposição autorizada. Use o teste para confirmar a chamada visual."
+                            "Sobreposição autorizada neste aparelho."
                         } else {
                             "Sobreposição ainda não autorizada neste aparelho."
                         },
@@ -480,37 +479,6 @@ fun ProfileScreen(
                         color = ItaTextSecondary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            val shown = IncomingOrderOverlay.show(
-                                context = context,
-                                orderId = "overlay-test",
-                                storeName = "Loja de teste ItaSuper",
-                                neighborhood = "Painel visual",
-                                shortCode = "#11F08E4A",
-                                alert = IncomingOrderAlert(
-                                    orderId = "overlay-test",
-                                    shortCode = "#11F08E4A",
-                                    storeName = "Loja de teste ItaSuper",
-                                    pickupAddress = "Avenida Brasil, 524 · Centro · Araruama",
-                                    destinationAddress = "Rua Professor Nunes Martins · Ponte dos Leites",
-                                    neighborhood = "Ponte dos Leites",
-                                    itemCount = 3,
-                                    paymentMethod = "Pix",
-                                    totalLabel = "R$ 42,90"
-                                )
-                            )
-                            if (!shown) {
-                                Toast.makeText(context, IncomingOrderOverlay.lastDiagnostic(), Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Testar painel visual", fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Abrir permissão do Android",
                         modifier = Modifier
@@ -529,27 +497,6 @@ fun ProfileScreen(
                         fontSize = 13.sp
                     )
                 }
-            }
-
-            // TODO(DEBUG): REMOVER ANTES DE PUBLICAR - botão temporário para debug do GPS
-            OutlinedButton(
-                onClick = { com.example.ui.debug.GpsDebugActivity.open(context) },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.MyLocation,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Debug GPS (temporário)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))

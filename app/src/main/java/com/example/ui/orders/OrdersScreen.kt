@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
@@ -42,8 +41,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -106,9 +103,7 @@ fun OrdersScreen(
     val availableOrders by viewModel.availableOrders.collectAsState()
     val activeRouteOrders by viewModel.activeRouteOrders.collectAsState()
     val todayCompletedCount by viewModel.todayCompletedCount.collectAsState()
-    val isOptimizedRoute by viewModel.isOptimizedRoute.collectAsState()
     val navPreference by viewModel.navPreference.collectAsState()
-    val isConnectivityBannerVisible by viewModel.isConnectivityBannerVisible.collectAsState()
     val offlineConfirmations by viewModel.offlineConfirmations.collectAsState()
 
     val acceptedStores = remember(linkedStores) {
@@ -210,7 +205,6 @@ fun OrdersScreen(
                     ) {
                         // 1. Local Connectivity Banner & Offline Sync Faixa
                         ConnectivityBanner(
-                            isVisible = isConnectivityBannerVisible,
                             offlineConfirmations = offlineConfirmations
                         )
 
@@ -239,14 +233,10 @@ fun OrdersScreen(
                             )
                         }
 
-                        // 5. Rota Otimizada Toggle
-                        OptimizedRouteToggleCard(
-                            isEnabled = isOptimizedRoute,
-                            onToggle = { viewModel.toggleOptimizedRoute(it) },
-                            activeCount = activeRouteOrders.size,
-                            totalKm = activeRouteOrders.sumOf { it.estimatedDistanceKm },
-                            totalMinutes = activeRouteOrders.sumOf { it.estimatedTimeMinutes }
-                        )
+                        // O cartão "rota otimizada" foi removido (auditoria
+                        // M3): era um toggle de preferência sem ordenação
+                        // real e exibia "~0 min" permanente, porque
+                        // estimatedTimeMinutes é sempre 0 no mapeamento.
 
                         // 6. Active Route Section
                         if (activeRouteOrders.isNotEmpty()) {
@@ -471,71 +461,6 @@ private fun StoresChipsFilter(
                     selected = isSelected,
                     borderColor = if (isSelected) ItaOrange else ItaBorder
                 )
-            )
-        }
-    }
-}
-
-@Composable
-private fun OptimizedRouteToggleCard(
-    isEnabled: Boolean,
-    onToggle: (Boolean) -> Unit,
-    activeCount: Int,
-    totalKm: Double,
-    totalMinutes: Int
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = ItaSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AltRoute,
-                    contentDescription = null,
-                    tint = if (isEnabled) ItaOrange else ItaTextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Rotas organizadas para entrega",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ItaTextPrimary
-                    )
-                    Text(
-                        text = if (activeCount > 0)
-                            "Estimativa: ${String.format("%.1f", totalKm)} km · ~$totalMinutes min"
-                        else
-                            "Ordenação sequencial inteligente por bairros",
-                        fontSize = 11.sp,
-                        color = ItaTextSecondary
-                    )
-                }
-            }
-
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = ItaOrange,
-                    uncheckedThumbColor = Color(0xFF94A3B8),
-                    uncheckedTrackColor = Color(0xFFE2E8F0)
-                ),
-                modifier = Modifier.testTag("switch_optimized_route")
             )
         }
     }

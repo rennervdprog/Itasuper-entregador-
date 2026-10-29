@@ -20,7 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -47,6 +50,11 @@ fun PinInputBoxes(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
+    // Trava de reentrada (auditoria B14): o 4º dígito dispara onConfirm e o
+    // onDone do teclado dispara de novo — sem guarda, a confirmação podia
+    // sair duplicada ou repetir durante o envio. Dispara 1x por PIN
+    // completo; apagar um dígito rearma a trava.
+    var lastConfirmedInput by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -58,13 +66,21 @@ fun PinInputBoxes(
             onValueChange = { input ->
                 if (input.length <= 4 && input.all { it.isDigit() }) {
                     onPinChange(input)
-                    if (input.length == 4) {
+                    if (input.length < 4) {
+                        lastConfirmedInput = null
+                    } else if (lastConfirmedInput != input) {
+                        lastConfirmedInput = input
                         onConfirm()
                     }
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            keyboardActions = KeyboardActions(onDone = { onConfirm() }),
+            keyboardActions = KeyboardActions(onDone = {
+                if (pin.length == 4 && lastConfirmedInput != pin) {
+                    lastConfirmedInput = pin
+                    onConfirm()
+                }
+            }),
             modifier = Modifier
                 .size(1.dp)
                 .focusRequester(focusRequester)

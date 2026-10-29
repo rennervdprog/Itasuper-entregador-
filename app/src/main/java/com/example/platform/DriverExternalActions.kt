@@ -37,7 +37,11 @@ object DriverExternalActions {
 
             NavigationPreference.WAZE -> Intent(
                 Intent.ACTION_VIEW,
-                if (hasCoordinates) {
+                // ll= só com precisão de endereço real (auditoria B11):
+                // com precisão "cep", a coordenada é o centróide do CEP e
+                // o Waze navegava p/ o miolo do bairro — igual ao Google,
+                // cai p/ a consulta por texto do endereço.
+                if (hasPreciseCoordinates) {
                     Uri.parse("waze://?ll=$latitude,$longitude&navigate=yes")
                 } else {
                     Uri.parse("waze://?q=$encodedDestination&navigate=yes")

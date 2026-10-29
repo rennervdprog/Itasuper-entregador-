@@ -21,10 +21,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Mantém a presença do motoboy como uma concessão curta para novas entregas.
- * A regra canônica do backend aceita presença normal até 10 minutos e mantém
- * tolerância até 13 minutos. Por isso, o aplicativo renova a presença a cada
- * 8 minutos somente quando está em primeiro plano, Online e sem rota ativa.
+ * Mantém a presença do motoboy renovada enquanto ele estiver Online.
+ * A regra canônica do backend aceita presença normal até 180 minutos e
+ * mantém tolerância até 183 minutos. O aplicativo renova a presença a cada
+ * 8 minutos enquanto a intenção Online estiver ligada — em primeiro plano,
+ * em rota e, em segundo plano, enquanto o processo viver (durante uma
+ * entrega, o serviço de tracking em primeiro plano mantém o processo
+ * ativo). Sair para entregar NÃO desliga a presença: quem define Offline
+ * é só o próprio motoboy, pelo botão.
  */
 class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     private val supabase = ItaSuperSupabase.client
@@ -35,10 +39,10 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
 
     private var heartbeatJob: Job? = null
     private var foregroundRestoreJob: Job? = null
-    private var appIsForeground = false
     private var routeStateKnown = false
     private var hasActiveRoute = false
     private var onlineIntent = false
+    private var lastHeartbeatAtMillis: Long? = null
 
     init {
         scope.launch { restoreOnlinePresence() }
@@ -70,7 +74,7 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
 
     /**
      * Carrega a preferência do motoboy e o estado real do backend. A renovação
-     * só começa depois que o repositório de pedidos confirmar que não há rota.
+     * só começa depois que o repositório de pedidos confirmar o estado da rota.
      */
     override suspend fun restoreOnlinePresence(): Result<Unit> = runCatching {
         val userId = supabase.auth.currentUserOrNull()?.id
@@ -83,33 +87,19 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     }
 
     /**
-     * É chamado após cada sincronização da rota. Em rota, o motorista deixa de
-     * ser elegível para novos pedidos e não desperdiça presença enquanto navega
-     * no Waze ou Google Maps. Ao concluir a última parada, a presença é retomada
-     * imediatamente se ele havia escolhido permanecer Online.
+     * É chamado após cada sincronização da rota. Estar em rota NÃO pausa a
+     * presença: o motoboy continua presente durante a entrega (a loja segue
+     * aceitando pedidos de delivery) e o heartbeat continua rodando. Ao
+     * concluir a última parada, a presença é renovada se ele estiver Online.
      */
     override suspend fun setRouteActive(active: Boolean): Result<Unit> = runCatching {
         routeStateKnown = true
         hasActiveRoute = active
-        val userId = supabase.auth.currentUserOrNull()?.id
-
-        if (active) {
-            stopHeartbeatLoop()
-            // Remove imediatamente a loja da elegibilidade para novos pedidos.
-            // A intenção Online permanece guardada para retomada após a rota.
-            if (userId != null) {
-                runCatching { updateDriverOnline(userId, online = false) }
-                    .onFailure { Log.w(TAG, "Não foi possível pausar disponibilidade ao iniciar rota.", it) }
-            }
-            publishAvailability()
-        } else {
-            publishAvailability()
-            refreshPresenceIfEligible("após concluir a rota")
-        }
+        publishAvailability()
+        refreshPresenceIfEligible(if (active) "ao iniciar rota" else "após concluir a rota")
     }
 
     override fun onAppForeground() {
-        appIsForeground = true
         foregroundRestoreJob?.cancel()
         foregroundRestoreJob = scope.launch {
             // O callback de foreground pode ocorrer antes de o Auth terminar de
@@ -124,12 +114,14 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     }
 
     override fun onAppBackground() {
-        appIsForeground = false
         foregroundRestoreJob?.cancel()
         foregroundRestoreJob = null
-        // Não mantém serviço em segundo plano somente para presença. Se o app
-        // não retornar, a janela canônica do Supabase expira naturalmente.
-        stopHeartbeatLoop()
+        // O loop de presença NÃO para em segundo plano (melhor esforço):
+        // durante uma entrega, o serviço de tracking em primeiro plano
+        // mantém o processo vivo e o heartbeat continua; fora de rota, o
+        // loop segue enquanto o processo viver. Se o Android encerrar o
+        // processo, a janela de 180 min do backend cobre a ausência e a
+        // presença é restaurada no próximo retorno ao primeiro plano.
     }
 
     /**
@@ -149,11 +141,16 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     }
 
     private suspend fun refreshPresenceIfEligible(trigger: String) {
-        if (!appIsForeground || !routeStateKnown || hasActiveRoute || !onlineIntent) {
+        if (!routeStateKnown || !onlineIntent) {
             stopHeartbeatLoop()
             return
         }
-        runHeartbeatSafely(trigger)
+        // Se o loop já está rodando, ele mantém o ciclo de 8 min — inclusive
+        // em rota e em segundo plano. Só força uma renovação imediata quando
+        // o loop ainda não começou.
+        if (heartbeatJob?.isActive != true) {
+            runHeartbeatSafely(trigger)
+        }
         startHeartbeatLoop()
     }
 
@@ -199,6 +196,9 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     private suspend fun runHeartbeatSafely(trigger: String) {
         runCatching {
             supabase.postgrest.rpc("driver_presence_heartbeat")
+        }.onSuccess {
+            lastHeartbeatAtMillis = System.currentTimeMillis()
+            publishAvailability()
         }.onFailure { error ->
             Log.w(TAG, "Heartbeat do entregador falhou $trigger; nova tentativa será feita no próximo ciclo.", error)
         }
@@ -207,9 +207,12 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
     private fun startHeartbeatLoop() {
         if (heartbeatJob?.isActive == true) return
         heartbeatJob = scope.launch {
-            while (isActive && appIsForeground && routeStateKnown && !hasActiveRoute && onlineIntent) {
+            // O ciclo continua em rota e em segundo plano enquanto a
+            // intenção Online estiver ligada; só para quando o motoboy fica
+            // Offline, faz logout ou o processo é encerrado pelo Android.
+            while (isActive && onlineIntent) {
                 delay(HEARTBEAT_INTERVAL_MILLIS)
-                if (isActive && appIsForeground && !hasActiveRoute && onlineIntent) {
+                if (isActive && onlineIntent) {
                     runHeartbeatSafely("no ciclo de 8 minutos")
                 }
             }
@@ -225,11 +228,22 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
         availability.value = DriverAvailability(
             isOnline = onlineIntent,
             statusText = when {
-                hasActiveRoute -> "Em rota · disponibilidade pausada"
-                onlineIntent -> "Recebendo pedidos · presença renovada a cada 8 min"
-                else -> "Você está Offline"
+                !onlineIntent -> "Você está Offline"
+                hasActiveRoute -> "Em rota · presença renovada ${lastRenewalText()}"
+                else -> "Recebendo pedidos · presença renovada ${lastRenewalText()}"
             }
         )
+    }
+
+    /** Texto honesto da última renovação confirmada pelo backend. */
+    private fun lastRenewalText(): String {
+        val last = lastHeartbeatAtMillis ?: return "a cada 8 min"
+        val minutes = ((System.currentTimeMillis() - last) / 60_000L).toInt()
+        return when {
+            minutes <= 0 -> "agora há pouco"
+            minutes == 1 -> "há 1 min"
+            else -> "há $minutes min"
+        }
     }
 
     private fun readOnlineIntent(userId: String, fallback: Boolean): Boolean =

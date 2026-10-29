@@ -59,7 +59,6 @@ fun DriverPermissionsScreen(
     onRequestNotifications: () -> Unit,
     onRequestLocation: () -> Unit,
     onRequestOverlay: () -> Unit,
-    onTestOverlay: () -> Unit,
     onContinue: () -> Unit
 ) {
     Column(
@@ -129,15 +128,6 @@ fun DriverPermissionsScreen(
             onRequest = onRequestOverlay,
             opensSettings = true
         )
-
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = onTestOverlay,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccessibleOrange)
-        ) {
-            Text("Testar painel visual", color = AccessibleOrange, fontWeight = FontWeight.SemiBold)
-        }
 
         Spacer(modifier = Modifier.height(12.dp))
         Button(

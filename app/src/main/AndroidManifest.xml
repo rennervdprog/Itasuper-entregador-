@@ -23,14 +23,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
-        <!-- Ícone padrão das notificações FCM (branco em fundo transparente) -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_color"
-            android:resource="@color/orange_primary" />
-
         <service
             android:name=".platform.DriverFirebaseMessagingService"
             android:exported="false">
@@ -49,11 +41,6 @@
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
-
-        <!-- TODO(DEBUG): REMOVER ANTES DE PUBLICAR -->
-        <activity
-            android:name=".ui.debug.GpsDebugActivity"
-            android:exported="false" />
 
         <activity
             android:name=".MainActivity"

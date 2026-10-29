@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.fake.AppContainer
 import com.example.data.model.DriverProfile
+import com.example.data.remote.isValidBrazilianDocument
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.DriverLinkRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +90,7 @@ class AuthViewModel(
         val state = _registrationUiState.value
         when {
             state.fullName.trim().length < 3 -> registrationError("Informe seu nome completo.")
-            state.document.filter(Char::isDigit).length !in 11..14 -> registrationError("Informe um CPF válido.")
+            !isValidBrazilianDocument(state.document.filter(Char::isDigit)) -> registrationError("Informe um CPF válido.")
             state.vehicle.trim().length < 3 -> registrationError("Informe o modelo do veículo.")
             state.whatsapp.filter(Char::isDigit).length !in 10..13 -> registrationError("Informe um WhatsApp válido com DDD.")
             !state.email.trim().contains("@") -> registrationError("Informe um e-mail válido.")

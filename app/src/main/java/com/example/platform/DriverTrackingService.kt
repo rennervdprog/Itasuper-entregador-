@@ -97,21 +97,6 @@ class DriverTrackingService : Service() {
     private var activeShortCode: String = ""
     private var arrivalAlertSent = false
 
-    // TODO(DEBUG): REMOVER ANTES DE PUBLICAR - logs detalhados para diagnosticar o GPS
-    private fun trackLog(msg: String) {
-        Log.d(TAG, msg)
-        GpsDebugLog.add(msg)
-    }
-
-    private fun trackLogError(msg: String, t: Throwable? = null) {
-        if (t != null) {
-            Log.e(TAG, msg, t)
-        } else {
-            Log.e(TAG, msg)
-        }
-        GpsDebugLog.add("ERRO: $msg" + (t?.let { " [${it::class.simpleName}: ${it.message}]" } ?: ""))
-    }
-
     private val prefs by lazy {
         getSharedPreferences(PREFS_TRACKING, MODE_PRIVATE)
     }
@@ -134,16 +119,11 @@ class DriverTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // TODO(DEBUG): REMOVER ANTES DE PUBLICAR
-        trackLog("=== Serviço de tracking iniciado ===")
         // Restaura o order ID persistido (sobrevive a reinicializações do serviço)
         val persistedOrderId = prefs.getString(KEY_ACTIVE_ORDER_ID, null)
-        trackLog("Order ID persistido: ${persistedOrderId ?: "nenhum"}")
         val requestedOrderId = intent?.getStringExtra(EXTRA_ORDER_ID) ?: activeOrderId ?: persistedOrderId
-        trackLog("Order ID solicitado via intent: ${intent?.getStringExtra(EXTRA_ORDER_ID) ?: "nenhum"}")
         if (requestedOrderId != activeOrderId) arrivalAlertSent = false
         activeOrderId = requestedOrderId
-        trackLog("Order ID ativo: ${activeOrderId ?: "NULO - tracking não vai rodar!"}")
         // Persiste para sobreviver a reinicializações
         if (requestedOrderId != null) {
             prefs.edit().putString(KEY_ACTIVE_ORDER_ID, requestedOrderId).apply()
@@ -155,19 +135,31 @@ class DriverTrackingService : Service() {
             destinationLongitude = intent.getDoubleExtra(EXTRA_DESTINATION_LONGITUDE, Double.NaN).takeIf { it.isFinite() }
             destinationAddress = intent.getStringExtra(EXTRA_DESTINATION_ADDRESS).orEmpty()
             activeShortCode = intent.getStringExtra(EXTRA_ORDER_SHORT_CODE).orEmpty()
+            // Persiste o destino JUNTO do pedido (auditoria M10): sem isso,
+            // um restart do serviço (START_STICKY/boot) restaurava o pedido
+            // mas perdia o destino, e o detectArrival nunca disparava.
+            // Double vai como String p/ não perder precisão no SharedPreferences.
+            prefs.edit()
+                .putString(KEY_DESTINATION_LATITUDE, destinationLatitude?.toString())
+                .putString(KEY_DESTINATION_LONGITUDE, destinationLongitude?.toString())
+                .putString(KEY_DESTINATION_ADDRESS, destinationAddress)
+                .putString(KEY_ORDER_SHORT_CODE, activeShortCode)
+                .apply()
+        } else if (requestedOrderId != null && requestedOrderId == persistedOrderId) {
+            // Restart sem intent de destino: restaura o destino persistido
+            // do MESMO pedido (pedido diferente = destino novo virá no start).
+            destinationLatitude = prefs.getString(KEY_DESTINATION_LATITUDE, null)?.toDoubleOrNull()
+            destinationLongitude = prefs.getString(KEY_DESTINATION_LONGITUDE, null)?.toDoubleOrNull()
+            destinationAddress = prefs.getString(KEY_DESTINATION_ADDRESS, null).orEmpty()
+            activeShortCode = prefs.getString(KEY_ORDER_SHORT_CODE, null).orEmpty()
         }
         startForeground(
             DriverNotificationHelper.TRACKING_NOTIFICATION_ID,
             DriverNotificationHelper.trackingNotification(this)
         )
         val hasPermission = hasLocationPermission()
-        // TODO(DEBUG): REMOVER ANTES DE PUBLICAR
-        trackLog("Permissão de localização: ${if (hasPermission) "OK" else "FALHA - sem permissão!"}")
         if (activeOrderId != null && hasPermission) {
-            trackLog("Solicitando atualizações de localização (15s)...")
             requestLocationUpdates()
-        } else {
-            trackLog("Tracking NÃO iniciado: orderId=${activeOrderId != null}, permissão=$hasPermission")
         }
         // Tenta sincronizar o buffer offline ao iniciar
         serviceScope.launch {
@@ -193,14 +185,11 @@ class DriverTrackingService : Service() {
     }
 
     private suspend fun persistLocation(orderId: String, location: Location, attempt: Int = 1) {
-        // TODO(DEBUG): REMOVER ANTES DE PUBLICAR - logs detalhados
-        trackLog("Location recebida: ${location.latitude}, ${location.longitude} (precisão: ${location.accuracy}m)")
         val userId = ItaSuperSupabase.client.auth.currentUserOrNull()?.id
         if (userId == null) {
-            trackLogError("Usuário não autenticado - impossível enviar localização")
+            Log.e(TAG, "Usuário não autenticado - impossível enviar localização")
             return
         }
-        trackLog("Driver user ID: $userId")
         val payload = DriverLocationInsert(
             driverUserId = userId,
             orderId = orderId,
@@ -210,16 +199,14 @@ class DriverTrackingService : Service() {
             speed = location.speed.toDouble(),
             heading = location.bearing.toDouble()
         )
-        trackLog("Enviando upsert para driver_locations (tentativa $attempt/3)...")
         try {
             ItaSuperSupabase.client.from("driver_locations").upsert(payload) {
                 onConflict = "driver_user_id"
             }
-            trackLog("Upsert: SUCESSO")
             // Após sucesso, tenta sincronizar o buffer offline
             syncPendingLocations()
         } catch (t: Throwable) {
-            trackLogError("Upsert FALHOU", t)
+            Log.e(TAG, "Falha ao enviar localização", t)
             // Salva no buffer offline
             try {
                 DriverTrackingDatabase.get(this).locations().upsert(
@@ -233,17 +220,15 @@ class DriverTrackingService : Service() {
                         heading = payload.heading
                     )
                 )
-                trackLog("Localização salva no buffer offline")
             } catch (dbError: Throwable) {
-                trackLogError("Falha ao salvar no buffer offline", dbError)
+                Log.e(TAG, "Falha ao salvar no buffer offline", dbError)
             }
             // Retry com backoff simples: 30s, máximo 3 tentativas
             if (attempt < MAX_RETRY_ATTEMPTS) {
-                trackLog("Agendando retry em ${RETRY_DELAY_MS / 1000}s (tentativa ${attempt + 1}/$MAX_RETRY_ATTEMPTS)...")
                 kotlinx.coroutines.delay(RETRY_DELAY_MS)
                 persistLocation(orderId, location, attempt + 1)
             } else {
-                trackLogError("Máximo de tentativas atingido. Localização ficou no buffer offline.")
+                Log.e(TAG, "Máximo de tentativas atingido. Localização ficou no buffer offline.")
             }
         }
     }
@@ -258,9 +243,6 @@ class DriverTrackingService : Service() {
             if (pending.isEmpty()) {
                 return
             }
-            // TODO(DEBUG): REMOVER ANTES DE PUBLICAR
-            trackLog("Sincronizando buffer offline: ${pending.size} localização(ões) pendente(s)")
-            var successCount = 0
             for (p in pending) {
                 try {
                     ItaSuperSupabase.client.from("driver_locations").upsert(
@@ -277,14 +259,12 @@ class DriverTrackingService : Service() {
                         onConflict = "driver_user_id"
                     }
                     dao.delete(p.orderId)
-                    successCount++
                 } catch (t: Throwable) {
-                    trackLogError("Falha ao sincronizar localização pendente (order ${p.orderId})", t)
+                    Log.e(TAG, "Falha ao sincronizar localização pendente", t)
                 }
             }
-            trackLog("Buffer offline sincronizado: $successCount/${pending.size} enviada(s)")
         } catch (t: Throwable) {
-            trackLogError("Erro ao sincronizar buffer offline", t)
+            Log.e(TAG, "Erro ao sincronizar buffer offline", t)
         }
     }
 
@@ -320,8 +300,7 @@ class DriverTrackingService : Service() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     companion object {
-        // TODO(DEBUG): REMOVER ANTES DE PUBLICAR - TAG de log temporária
-        private const val TAG = "GPSTracking"
+        private const val TAG = "DriverTracking"
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val RETRY_DELAY_MS = 30_000L
 
@@ -332,6 +311,10 @@ class DriverTrackingService : Service() {
         private const val EXTRA_ORDER_SHORT_CODE = "order_short_code"
         private const val PREFS_TRACKING = "driver_tracking"
         private const val KEY_ACTIVE_ORDER_ID = "active_order_id"
+        private const val KEY_DESTINATION_LATITUDE = "destination_latitude"
+        private const val KEY_DESTINATION_LONGITUDE = "destination_longitude"
+        private const val KEY_DESTINATION_ADDRESS = "destination_address"
+        private const val KEY_ORDER_SHORT_CODE = "order_short_code"
 
         fun start(context: Context, order: DeliveryOrder) {
             ContextCompat.startForegroundService(
@@ -346,9 +329,15 @@ class DriverTrackingService : Service() {
         }
 
         fun stop(context: Context) {
-            // Limpa o order ID persistido ao finalizar a entrega
+            // Limpa o pedido ativo E o destino persistido ao finalizar
             context.getSharedPreferences(PREFS_TRACKING, MODE_PRIVATE)
-                .edit().remove(KEY_ACTIVE_ORDER_ID).apply()
+                .edit()
+                .remove(KEY_ACTIVE_ORDER_ID)
+                .remove(KEY_DESTINATION_LATITUDE)
+                .remove(KEY_DESTINATION_LONGITUDE)
+                .remove(KEY_DESTINATION_ADDRESS)
+                .remove(KEY_ORDER_SHORT_CODE)
+                .apply()
             context.stopService(Intent(context, DriverTrackingService::class.java))
         }
     }

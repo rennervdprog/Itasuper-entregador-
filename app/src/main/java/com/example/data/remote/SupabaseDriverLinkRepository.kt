@@ -102,10 +102,11 @@ class SupabaseDriverLinkRepository : DriverLinkRepository {
                     "pending" -> DriverLinkStatus.PENDING
                     else -> DriverLinkStatus.REJECTED
                 },
-                invitedAt = link.createdAt.orEmpty(),
-                // O schema ativo não expõe accepted_at/updated_at; created_at é a
-                // única data disponível para apresentar o vínculo sem inventar dados.
-                acceptedAt = if (link.status.lowercase() == "accepted") link.createdAt else null
+                // O schema ativo não expõe accepted_at/updated_at: a única
+                // data do vínculo é o created_at (invitedAt). O antigo campo
+                // acceptedAt repetia esse mesmo valor com outro nome —
+                // removido p/ não fingir um marco de aceite (auditoria B4).
+                invitedAt = link.createdAt.orEmpty()
             )
         }
     }
