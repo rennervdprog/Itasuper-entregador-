@@ -53,4 +53,20 @@ object AppContainer {
     fun clearAcceptedOrder(orderId: String) {
         if (acceptedOrderId.value == orderId) acceptedOrderId.value = null
     }
+
+    /**
+     * Pedido que o entregador mandou abrir no app pelo botão "Ver
+     * entrega" da sobreposição. A tela de pedidos observa este sinal e
+     * força atualizações até a oferta aparecer na lista de disponíveis —
+     * o aceite em si acontece dentro do app, com a sessão carregada.
+     */
+    val viewOrderId = MutableStateFlow<String?>(null)
+
+    fun signalViewOrder(orderId: String) {
+        if (orderId.isNotBlank()) viewOrderId.value = orderId
+    }
+
+    fun clearViewOrder(orderId: String) {
+        if (viewOrderId.value == orderId) viewOrderId.value = null
+    }
 }
