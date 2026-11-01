@@ -163,13 +163,21 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
                 .sumOf { it.quantity }
         }.getOrDefault(0)
 
-        val storeName = store?.name?.takeIf { it.isNotBlank() }
-            ?: data["store_name"].orEmpty().ifBlank { "Loja ItaSuper" }
+        // O nome que o servidor manda no push é o oficial (lido da loja com
+        // acesso total); a vista de lojas é só enriquecimento — ela depende
+        // da sessão/vínculo e pode voltar vazia com o app frio.
+        val storeName = data["store_name"].orEmpty()
+            .ifBlank { store?.name.orEmpty() }
+            .ifBlank { "Loja ItaSuper" }
         val pickupAddress = listOfNotNull(
             store?.addressStreet?.takeIf { it.isNotBlank() },
             store?.addressNeighborhood?.takeIf { it.isNotBlank() },
             store?.addressCity?.takeIf { it.isNotBlank() }
-        ).joinToString(" · ").ifBlank { "Retirada na loja parceira" }
+        ).joinToString(" · ").ifBlank {
+            // A vista de lojas só mostra lojas com vínculo aceito; fora dela,
+            // o endereço de retirada vem nos dados do próprio push.
+            data["pickup_address"].orEmpty().ifBlank { "Retirada na loja parceira" }
+        }
         val destination = order.addressDetails.orEmpty().ifBlank {
             listOfNotNull(
                 order.neighborhood?.takeIf { it.isNotBlank() },
@@ -195,6 +203,7 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
         orderId = orderId,
         shortCode = OrderDisplayCode.fromOrderId(orderId),
         storeName = data["store_name"].orEmpty().ifBlank { "Loja ItaSuper" },
+        pickupAddress = data["pickup_address"].orEmpty().ifBlank { "Retirada na loja parceira" },
         neighborhood = data["neighborhood"].orEmpty(),
         destinationAddress = data["neighborhood"].orEmpty().ifBlank { "Destino disponível" }
     )
