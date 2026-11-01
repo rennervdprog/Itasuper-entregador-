@@ -47,6 +47,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        handleAcceptedOrderIntent(intent)
         refreshPermissionStatus()
         setContentView(ComposeView(this).apply {
             setContent {
@@ -100,6 +101,21 @@ class MainActivity : FragmentActivity() {
             }
             }
         })
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAcceptedOrderIntent(intent)
+    }
+
+    // Aceite vindo da sobreposição/tela de oferta: sinaliza o pedido para
+    // a tela de pedidos forçar a atualização até a entrega aparecer na
+    // rota ativa (trazer o app para a frente, sozinho, não atualizava).
+    private fun handleAcceptedOrderIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_ACCEPTED_ORDER_ID)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { AppContainer.signalAcceptedOrder(it) }
     }
 
     override fun onResume() {
@@ -167,7 +183,8 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    private companion object {
+    companion object {
+        const val EXTRA_ACCEPTED_ORDER_ID = "extra_accepted_order_id"
         const val NOTIFICATION_PERMISSION_REQUEST = 1104
         const val LOCATION_PERMISSION_REQUEST = 1105
     }

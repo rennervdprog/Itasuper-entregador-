@@ -216,9 +216,11 @@ object IncomingOrderOverlay {
                 acceptScope.launch {
                     AppContainer.ordersRepository.acceptOrder(orderId)
                         .onSuccess {
+                            AppContainer.signalAcceptedOrder(orderId)
                             dismiss()
                             appContext.startActivity(
                                 Intent(appContext, MainActivity::class.java)
+                                    .putExtra(MainActivity.EXTRA_ACCEPTED_ORDER_ID, orderId)
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                             )
                         }

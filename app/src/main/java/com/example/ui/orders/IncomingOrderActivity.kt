@@ -102,8 +102,10 @@ class IncomingOrderActivity : ComponentActivity() {
             errorMessage = null
             AppContainer.ordersRepository.acceptOrder(orderId)
                 .onSuccess {
+                    AppContainer.signalAcceptedOrder(orderId)
                     startActivity(
                         Intent(this@IncomingOrderActivity, MainActivity::class.java)
+                            .putExtra(MainActivity.EXTRA_ACCEPTED_ORDER_ID, orderId)
                             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     )
                     finish()
