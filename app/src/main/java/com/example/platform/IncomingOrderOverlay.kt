@@ -15,26 +15,23 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.MainActivity
-import com.example.data.fake.AppContainer
 import com.example.data.model.IncomingOrderAlert
-import com.example.ui.common.DriverUserMessage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 /**
  * Chamada visual em tela inteira para uma entrega disponível.
  *
- * Tela única da oferta: o aceite acontece aqui mesmo, pela mesma chamada
- * validada no servidor que a tela do pedido usa (RPC driver_accept_order).
- * A IncomingOrderActivity continua existindo para o toque na notificação
- * comum, quando a sobreposição não é exibida.
+ * A sobreposição só AVISA: o botão "Ver entrega" abre o app já na
+ * oferta, e o aceite acontece dentro do app. Aceitar daqui falhava com
+ * o processo frio — o push acorda o processo para desenhar a
+ * sobreposição, mas a sessão do entregador não fica pronta nesse
+ * contexto e o servidor recusava o aceite (visto ao vivo nas 2.4.4 e
+ * 2.4.5). Dentro do app, com a sessão carregada, o aceite funciona.
+ * A IncomingOrderActivity continua existindo para o toque na
+ * notificação comum, quando a sobreposição não é exibida.
  */
 object IncomingOrderOverlay {
     private var windowManager: WindowManager? = null
     private var activeView: View? = null
-    private val acceptScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile
     private var lastDiagnostic: String = "Nenhum teste de painel executado."
@@ -194,47 +191,20 @@ object IncomingOrderOverlay {
             background = roundedBackground(Color.rgb(226, 232, 240), dp(appContext, 16))
             setOnClickListener { dismiss() }
         }
-        val acceptError = label("", 13f, Color.rgb(254, 202, 202), Typeface.BOLD).apply {
-            gravity = Gravity.CENTER
-            visibility = View.GONE
-        }
-        var accepting = false
-        val acceptButton = Button(appContext).apply {
-            text = "Aceitar entrega"
+        val viewButton = Button(appContext).apply {
+            text = "Ver entrega"
             textSize = 16f
             isAllCaps = false
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
             background = roundedBackground(orange, dp(appContext, 16))
             setOnClickListener {
-                if (accepting) return@setOnClickListener
-                accepting = true
-                isEnabled = false
-                dismissButton.isEnabled = false
-                text = "Aceitando..."
-                acceptError.visibility = View.GONE
-                acceptScope.launch {
-                    AppContainer.ordersRepository.acceptOrder(orderId)
-                        .onSuccess {
-                            AppContainer.signalAcceptedOrder(orderId)
-                            dismiss()
-                            appContext.startActivity(
-                                Intent(appContext, MainActivity::class.java)
-                                    .putExtra(MainActivity.EXTRA_ACCEPTED_ORDER_ID, orderId)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                            )
-                        }
-                        .onFailure { error ->
-                            accepting = false
-                            if (activeView != null) {
-                                isEnabled = true
-                                dismissButton.isEnabled = true
-                                text = "Aceitar entrega"
-                                acceptError.text = DriverUserMessage.orderAcceptance(error)
-                                acceptError.visibility = View.VISIBLE
-                            }
-                        }
-                }
+                dismiss()
+                appContext.startActivity(
+                    Intent(appContext, MainActivity::class.java)
+                        .putExtra(MainActivity.EXTRA_VIEW_ORDER_ID, orderId)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                )
             }
         }
         val actionRow = LinearLayout(appContext).apply {
@@ -242,7 +212,7 @@ object IncomingOrderOverlay {
             addView(dismissButton, LinearLayout.LayoutParams(0, dp(appContext, 58), 0.88f).apply {
                 marginEnd = dp(appContext, 10)
             })
-            addView(acceptButton, LinearLayout.LayoutParams(0, dp(appContext, 58), 1.35f))
+            addView(viewButton, LinearLayout.LayoutParams(0, dp(appContext, 58), 1.35f))
         }
 
         val root = LinearLayout(appContext).apply {
@@ -262,8 +232,6 @@ object IncomingOrderOverlay {
             addView(space(appContext, 30))
             addView(details, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(View(appContext), LinearLayout.LayoutParams(1, 0, 1f))
-            addView(acceptError, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(space(appContext, 10))
             addView(actionRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 58)))
         }
 

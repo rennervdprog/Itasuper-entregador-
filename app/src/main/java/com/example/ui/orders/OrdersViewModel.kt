@@ -100,6 +100,25 @@ class OrdersViewModel(
                 }
             }
         }
+        // "Ver entrega" da sobreposição: o app abre para o aceite
+        // acontecer aqui dentro (sessão carregada). Força a atualização
+        // até a oferta aparecer na lista de disponíveis.
+        viewModelScope.launch {
+            AppContainer.viewOrderId.collect { orderId ->
+                if (orderId.isNullOrBlank()) return@collect
+                repeat(12) {
+                    if (availableOrders.value.any { it.id == orderId }) {
+                        AppContainer.clearViewOrder(orderId)
+                        return@collect
+                    }
+                    runCatching { ordersRepository.refreshOrders() }
+                    delay(1_500)
+                }
+                if (availableOrders.value.any { it.id == orderId }) {
+                    AppContainer.clearViewOrder(orderId)
+                }
+            }
+        }
     }
 
     fun toggleAvailability(newOnlineState: Boolean) {

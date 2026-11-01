@@ -48,6 +48,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         handleAcceptedOrderIntent(intent)
+        handleViewOrderIntent(intent)
         refreshPermissionStatus()
         setContentView(ComposeView(this).apply {
             setContent {
@@ -107,6 +108,7 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleAcceptedOrderIntent(intent)
+        handleViewOrderIntent(intent)
     }
 
     // Aceite vindo da sobreposição/tela de oferta: sinaliza o pedido para
@@ -116,6 +118,14 @@ class MainActivity : FragmentActivity() {
         intent?.getStringExtra(EXTRA_ACCEPTED_ORDER_ID)
             ?.takeIf { it.isNotBlank() }
             ?.let { AppContainer.signalAcceptedOrder(it) }
+    }
+
+    // "Ver entrega" da sobreposição: sinaliza o pedido para a tela de
+    // pedidos atualizar até a oferta aparecer — o aceite é dentro do app.
+    private fun handleViewOrderIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_VIEW_ORDER_ID)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { AppContainer.signalViewOrder(it) }
     }
 
     override fun onResume() {
@@ -185,6 +195,7 @@ class MainActivity : FragmentActivity() {
 
     companion object {
         const val EXTRA_ACCEPTED_ORDER_ID = "extra_accepted_order_id"
+        const val EXTRA_VIEW_ORDER_ID = "extra_view_order_id"
         const val NOTIFICATION_PERMISSION_REQUEST = 1104
         const val LOCATION_PERMISSION_REQUEST = 1105
     }
