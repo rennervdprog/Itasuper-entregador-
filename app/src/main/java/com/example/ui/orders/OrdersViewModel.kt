@@ -79,6 +79,29 @@ class OrdersViewModel(
     val offlineConfirmations: StateFlow<List<OfflineDeliveryConfirmation>> = ordersRepository.getOfflineConfirmations()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    init {
+        // Pedido aceito pela sobreposição/tela de oferta: força a
+        // atualização da lista até a entrega aparecer na rota ativa.
+        // Sem isto, trazer o app para a frente nem sempre dispara uma
+        // atualização nova e o entregador precisava recarregar na mão.
+        viewModelScope.launch {
+            AppContainer.acceptedOrderId.collect { orderId ->
+                if (orderId.isNullOrBlank()) return@collect
+                repeat(12) {
+                    if (activeRouteOrders.value.any { it.id == orderId }) {
+                        AppContainer.clearAcceptedOrder(orderId)
+                        return@collect
+                    }
+                    runCatching { ordersRepository.refreshOrders() }
+                    delay(1_500)
+                }
+                if (activeRouteOrders.value.any { it.id == orderId }) {
+                    AppContainer.clearAcceptedOrder(orderId)
+                }
+            }
+        }
+    }
+
     fun toggleAvailability(newOnlineState: Boolean) {
         viewModelScope.launch {
             val hasActive = activeRouteOrders.value.isNotEmpty()
