@@ -18,6 +18,7 @@ import com.example.platform.NetworkMonitor
 import com.example.data.repository.DriverAvailabilityRepository
 import com.example.data.repository.DriverOrdersRepository
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -40,6 +41,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -86,7 +89,24 @@ class SupabaseDriverOrdersRepository(
     override fun getTodayCompletedCount(): Flow<Int> = todayCompletedCount.asStateFlow()
     override fun getOfflineConfirmations(): Flow<List<OfflineDeliveryConfirmation>> = offlineQueue.observe()
 
+    /**
+     * Quando o processo é iniciado pelo push (app fechado), a sessão
+     * salva ainda pode estar carregando — a restauração é assíncrona.
+     * Chamar o RPC de aceite nesse instante sai sem usuário e o
+     * servidor recusa ("sessão inválida"), embora por dentro do app o
+     * mesmo aceite funcione. Esperar a sessão sair do estado inicial
+     * antes de aceitar; com o app já aberto, retorna na hora.
+     */
+    private suspend fun awaitSessionReady() {
+        runCatching {
+            withTimeoutOrNull(10_000) {
+                supabase.auth.sessionStatus.first { status -> status !is SessionStatus.Initializing }
+            }
+        }
+    }
+
     override suspend fun acceptOrder(orderId: String): Result<Unit> = runCatching {
+        awaitSessionReady()
         supabase.postgrest.rpc("driver_accept_order", buildJsonObject {
             put("_order_id", orderId)
         })
@@ -95,6 +115,7 @@ class SupabaseDriverOrdersRepository(
 
     override suspend fun acceptAllOrders(orderIds: List<String>): Result<Unit> = runCatching {
         require(orderIds.isNotEmpty()) { "Nenhum pedido disponível para aceitar." }
+        awaitSessionReady()
         supabase.postgrest.rpc("driver_accept_orders_batch", buildJsonObject {
             put("_order_ids", buildJsonArray {
                 orderIds.distinct().forEach { add(JsonPrimitive(it)) }
