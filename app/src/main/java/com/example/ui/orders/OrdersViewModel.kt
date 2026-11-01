@@ -167,6 +167,19 @@ class OrdersViewModel(
         }
         val orderIds = orders.map { it.id }
 
+        // Uma rota é de uma loja só: sem filtro de loja, "aceitar todos"
+        // misturava pedidos de lojas diferentes na mesma rota (o servidor
+        // também recusa desde 2026-11-01). Orienta a filtrar por uma loja.
+        if (storeFilter == null) {
+            val lojas = orders.map { it.store.id }.distinct()
+            if (lojas.size > 1) {
+                _uiState.value = _uiState.value.copy(
+                    feedbackMessage = "Você tem pedidos de ${lojas.size} lojas. Uma rota é de uma loja só: filtre por uma loja para aceitar todos os pedidos dela de uma vez."
+                )
+                return
+            }
+        }
+
         viewModelScope.launch {
             val result = ordersRepository.acceptAllOrders(orderIds)
             result.onSuccess {

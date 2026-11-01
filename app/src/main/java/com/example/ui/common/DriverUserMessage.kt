@@ -15,6 +15,8 @@ object DriverUserMessage {
                 "Não foi possível concluir agora. Verifique sua internet e tente novamente."
             detail.contains("permission denied") || detail.contains("not allowed") || detail.contains("403") ->
                 "Esta ação não está disponível para sua conta no momento. Atualize a tela e tente novamente."
+            detail.contains("uma rota é de uma loja só") || detail.contains("uma loja por vez") ->
+                "Uma rota é de uma loja só. Filtre por uma loja para aceitar todos os pedidos dela de uma vez."
             detail.contains("already accepted") || detail.contains("já aceito") || detail.contains("not pending") ||
                 detail.contains("não está pendente") || detail.contains("0 rows") ->
                 "Esta solicitação já foi atualizada. Atualize a tela para ver a situação atual."
