@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryOrder
 import com.example.data.model.formatBrl
+import java.util.Locale
+import kotlin.math.roundToInt
 import com.example.ui.components.DriverHelmetMark
 import com.example.data.model.NavigationPreference
 import com.example.data.model.OrderDeliveryStatus
@@ -92,6 +94,7 @@ fun ActiveRouteSection(
     onDispatchAll: () -> Unit,
     onOpenPinConfirm: (DeliveryOrder) -> Unit,
     onOpenNavigation: (NavigationPreference, DeliveryOrder) -> Unit,
+    onNavigateRoute: () -> Unit,
     onOpenContact: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -166,6 +169,52 @@ fun ActiveRouteSection(
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+
+        // Rota otimizada: total estimado + navegação da rota inteira.
+        // A ordem das paradas já chega otimizada do repositório
+        // (routeLegKm por trecho); aqui só exibimos e abrimos o Maps.
+        if (orders.size >= 2) {
+            val routeTotalKm = orders.mapNotNull { it.routeLegKm }.sum()
+            if (routeTotalKm > 0.0) {
+                Text(
+                    text = "Ordem otimizada pela menor distância · ± ${formatRouteKm(routeTotalKm)} no total",
+                    fontSize = 12.sp,
+                    color = ItaTextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Button(
+                onClick = onNavigateRoute,
+                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btn_navigate_full_route")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Navigation,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Navegar rota (${orders.size} paradas)",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+            if (navPreference == NavigationPreference.WAZE) {
+                Text(
+                    text = "A rota completa abre no Google Maps — o Waze não aceita várias paradas.",
+                    fontSize = 11.sp,
+                    color = ItaTextSecondary,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         // Active delivery cards
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -416,6 +465,14 @@ private fun NextStopHeroCard(
     }
 }
 
+/** Formata distância de trecho/total em pt-BR: "850 m" ou "1,2 km". */
+private fun formatRouteKm(km: Double): String =
+    if (km < 1.0) {
+        "${(km * 1000).roundToInt()} m"
+    } else {
+        String.format(Locale("pt", "BR"), "%.1f km", km)
+    }
+
 @Composable
 fun ActiveDeliveryCard(
     order: DeliveryOrder,
@@ -506,6 +563,24 @@ fun ActiveDeliveryCard(
                 fontSize = 13.sp,
                 color = ItaSlate500
             )
+
+            if (order.routeLegKm != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Route,
+                        contentDescription = null,
+                        tint = ItaOrange,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Distância do trecho: ${formatRouteKm(order.routeLegKm)}",
+                        fontSize = 12.sp,
+                        color = ItaTextSecondary
+                    )
+                }
+            }
 
             // Customer Name & Contact
             Spacer(modifier = Modifier.height(6.dp))
