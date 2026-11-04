@@ -171,10 +171,15 @@ fun ActiveRouteSection(
         Spacer(modifier = Modifier.height(10.dp))
 
         // Rota otimizada: total estimado + navegação da rota inteira.
-        // A ordem das paradas já chega otimizada do repositório
-        // (routeLegKm por trecho); aqui só exibimos e abrimos o Maps.
+        // Fluxo correto: primeiro "Sair para entrega". O botão Navegar
+        // rota só aparece com a rota na rua (2+ paradas já despachadas)
+        // e navega somente essas paradas — pedido ainda na loja não entra.
+        val departedStops = orders.filter {
+            it.status == OrderDeliveryStatus.SAIU_ENTREGA || it.status == OrderDeliveryStatus.EM_TRANSITO
+        }
         if (orders.size >= 2) {
-            val routeTotalKm = orders.mapNotNull { it.routeLegKm }.sum()
+            val totalSource = if (departedStops.isNotEmpty()) departedStops else orders
+            val routeTotalKm = totalSource.mapNotNull { it.routeLegKm }.sum()
             if (routeTotalKm > 0.0) {
                 Text(
                     text = "Ordem otimizada pela menor distância · ± ${formatRouteKm(routeTotalKm)} no total",
@@ -183,34 +188,42 @@ fun ActiveRouteSection(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            Button(
-                onClick = onNavigateRoute,
-                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("btn_navigate_full_route")
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Navigation,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
+            if (departedStops.size >= 2) {
+                Button(
+                    onClick = onNavigateRoute,
+                    colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("btn_navigate_full_route")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Navigation,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Navegar rota (${departedStops.size} paradas)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+                if (navPreference == NavigationPreference.WAZE) {
+                    Text(
+                        text = "A rota completa abre no Google Maps — o Waze não aceita várias paradas.",
+                        fontSize = 11.sp,
+                        color = ItaTextSecondary,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            } else {
                 Text(
-                    text = "Navegar rota (${orders.size} paradas)",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-            if (navPreference == NavigationPreference.WAZE) {
-                Text(
-                    text = "A rota completa abre no Google Maps — o Waze não aceita várias paradas.",
+                    text = "Depois de sair para entrega, o botão Navegar rota aparece aqui.",
                     fontSize = 11.sp,
-                    color = ItaTextSecondary,
-                    modifier = Modifier.padding(top = 6.dp)
+                    color = ItaTextSecondary
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
