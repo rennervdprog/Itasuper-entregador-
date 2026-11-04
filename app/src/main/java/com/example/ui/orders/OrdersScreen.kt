@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.NavigationPreference
+import com.example.data.model.OrderDeliveryStatus
 import com.example.ui.components.ConnectivityBanner
 import com.example.ui.components.MetricsRow
 import com.example.ui.components.OnlineHeroToggle
@@ -258,7 +259,13 @@ fun OrdersScreen(
                                     ).onFailure { viewModel.reportExternalActionFailure(it.message) }
                                 },
                                 onNavigateRoute = {
-                                    DriverExternalActions.openFullRoute(context, activeRouteOrders)
+                                    // Só as paradas já despachadas entram na
+                                    // navegação: pedido ainda na loja não é destino.
+                                    val departed = activeRouteOrders.filter {
+                                        it.status == OrderDeliveryStatus.SAIU_ENTREGA ||
+                                            it.status == OrderDeliveryStatus.EM_TRANSITO
+                                    }
+                                    DriverExternalActions.openFullRoute(context, departed)
                                         .onFailure { viewModel.reportExternalActionFailure(it.message) }
                                 },
                                 onOpenContact = { type, num ->
