@@ -3,7 +3,9 @@ package com.example.platform
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.data.model.DeliveryOrder
 import com.example.data.model.NavigationPreference
+import com.example.data.model.OrderDeliveryStatus
 
 object DriverExternalActions {
     /**
@@ -56,6 +58,60 @@ object DriverExternalActions {
         context.startActivity(
             if (primaryIntent.resolveActivity(context.packageManager) != null) {
                 primaryIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            } else {
+                fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
+    }
+
+    /**
+     * Abre o Google Maps com a rota inteira: a origem é a posição atual do
+     * aparelho (o Maps usa sozinho quando a origem é omitida), as paradas
+     * intermediárias viram `waypoints` na ordem recebida e a última é o
+     * destino. Parada com coordenada precisa entra como coordenada; as
+     * demais (precisão de CEP ou sem coordenada) entram pelo endereço
+     * textual — mesma regra da navegação individual (auditoria B11).
+     *
+     * Limite do Maps por link: destino + até 9 intermediárias. Rota maior
+     * que isso abre com as 10 primeiras paradas da sequência; o restante
+     * continua no app. O Waze não aceita rota multiparadas por link, por
+     * isso esta ação é sempre no Google Maps.
+     */
+    fun openFullRoute(
+        context: Context,
+        orders: List<DeliveryOrder>
+    ): Result<Unit> = runCatching {
+        val stops = orders.filter { it.status != OrderDeliveryStatus.FINALIZADO }
+        require(stops.size >= 2) { "A rota precisa de pelo menos duas paradas." }
+
+        fun stopParam(order: DeliveryOrder): String {
+            val lat = order.destinationLatitude
+            val lng = order.destinationLongitude
+            val hasPreciseCoordinates = lat != null && lng != null &&
+                lat in -90.0..90.0 && lng in -180.0..180.0 &&
+                !order.destinationPrecision.equals("cep", ignoreCase = true)
+            return if (hasPreciseCoordinates) "$lat,$lng" else order.fullAddress
+        }
+
+        val limited = stops.take(10)
+        val url = buildString {
+            append("https://www.google.com/maps/dir/?api=1")
+            append("&travelmode=driving")
+            append("&destination=")
+            append(Uri.encode(stopParam(limited.last())))
+            val waypoints = limited.dropLast(1)
+            if (waypoints.isNotEmpty()) {
+                append("&waypoints=")
+                append(waypoints.joinToString("%7C") { Uri.encode(stopParam(it)) })
+            }
+        }
+
+        val mapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .setPackage("com.google.android.apps.maps")
+        val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(
+            if (mapsIntent.resolveActivity(context.packageManager) != null) {
+                mapsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             } else {
                 fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

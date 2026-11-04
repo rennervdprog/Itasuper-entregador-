@@ -257,6 +257,10 @@ fun OrdersScreen(
                                         destinationPrecision = order.destinationPrecision
                                     ).onFailure { viewModel.reportExternalActionFailure(it.message) }
                                 },
+                                onNavigateRoute = {
+                                    DriverExternalActions.openFullRoute(context, activeRouteOrders)
+                                        .onFailure { viewModel.reportExternalActionFailure(it.message) }
+                                },
                                 onOpenContact = { type, num ->
                                     val action = if (type == "WhatsApp") {
                                         DriverExternalActions.openWhatsApp(context, num)

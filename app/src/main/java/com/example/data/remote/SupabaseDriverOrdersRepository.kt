@@ -251,10 +251,24 @@ class SupabaseDriverOrdersRepository(
                 row.driverId == null &&
                 (row.assignedDriverId == null || row.assignedDriverId == userId)
         }
-        val active = mappedOrders.filter { order ->
+        val activeMapped = mappedOrders.filter { order ->
             val row = rowsById[order.id] ?: return@filter false
             row.driverId == userId && row.status.lowercase() in activeStatuses
-        }.mapIndexed { index, order -> order.copy(stopOrder = index + 1) }
+        }
+        // Ordem automática da rota (vizinho mais próximo): quem já saiu é
+        // sequenciado da posição atual do motoboy; quem ainda está na loja,
+        // a partir da loja. Sem posição/loja conhecida, vale a ordem de
+        // chegada — o otimizador decide por bloco.
+        val driverLoc = AddressGeocodingCache.currentDriverLocation(ItaSuperApplication.appContext)
+        val routeStoreLat = activeMapped.firstOrNull()?.store?.latitude
+        val routeStoreLng = activeMapped.firstOrNull()?.store?.longitude
+        val active = optimizeRouteStops(
+            orders = activeMapped,
+            departedOriginLat = driverLoc?.latitude ?: routeStoreLat,
+            departedOriginLng = driverLoc?.longitude ?: routeStoreLng,
+            readyOriginLat = routeStoreLat ?: driverLoc?.latitude,
+            readyOriginLng = routeStoreLng ?: driverLoc?.longitude
+        )
 
         availableOrders.value = available
         activeRouteOrders.value = active
@@ -370,7 +384,9 @@ class SupabaseDriverOrdersRepository(
                     neighborhood = storeRow?.addressNeighborhood.orEmpty(),
                     city = storeRow?.addressCity.orEmpty(),
                     phone = "",
-                    cnpj = ""
+                    cnpj = "",
+                    latitude = storeRow?.latitude,
+                    longitude = storeRow?.longitude
                 ),
                 status = row.status.toDeliveryStatus(),
                 customerName = contact?.fullName?.takeIf { it.isNotBlank() } ?: "Cliente",
@@ -406,27 +422,9 @@ class SupabaseDriverOrdersRepository(
         }
     }
 
-    /**
-     * Distância em linha reta entre loja e destino, calculada somente quando
-     * as coordenadas reais dos dois pontos foram salvas no pedido.
-     */
-    private fun haversineKm(
-        originLat: Double?,
-        originLng: Double?,
-        clientLat: Double?,
-        clientLng: Double?
-    ): Double? {
-        if (originLat == null || originLng == null || clientLat == null || clientLng == null) {
-            return null
-        }
-        val earthRadiusKm = 6371.0
-        val latitudeDelta = Math.toRadians(clientLat - originLat)
-        val longitudeDelta = Math.toRadians(clientLng - originLng)
-        val a = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
-            cos(Math.toRadians(originLat)) * cos(Math.toRadians(clientLat)) *
-            sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
-        return earthRadiusKm * 2 * atan2(sqrt(a), sqrt(1 - a))
-    }
+    // haversineKm() e o otimizador de rota vivem em RouteOptimizer.kt
+    // (mesmo pacote): a distância em linha reta é compartilhada entre o
+    // mapeamento dos pedidos e a ordenação automática das paradas.
 
     // updateOrderStatus() foi removido: escrevia orders.status direto, fora
     // das RPCs de aceite/partida/finalização, e não tinha nenhum chamador
