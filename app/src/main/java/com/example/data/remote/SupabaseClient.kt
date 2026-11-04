@@ -1,6 +1,7 @@
 package com.example.data.remote
 
 import com.example.BuildConfig
+import com.example.ItaSuperApplication
 import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.functions.Functions
@@ -41,6 +42,10 @@ object ItaSuperSupabase {
             supabaseKey = configuredPublishableKey
         ) {
             install(Auth) {
+                // Sem isto a sessão fica só na RAM (MemorySessionManager) e o
+                // app pede login a cada fechamento. Gravando em disco, o
+                // motoboy abre o app já logado e o token renova sozinho.
+                sessionManager = DurableSessionManager(ItaSuperApplication.appContext)
                 alwaysAutoRefresh = true
                 autoLoadFromStorage = true
                 autoSaveToStorage = true
