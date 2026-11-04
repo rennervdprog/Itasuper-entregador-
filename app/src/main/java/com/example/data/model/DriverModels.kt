@@ -58,6 +58,8 @@ data class LinkedStore(
     val city: String,
     val phone: String,
     val cnpj: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val activeOrdersCount: Int = 0
 )
 
@@ -185,6 +187,13 @@ data class DeliveryOrder(
     // armadilha latente (auditoria M1) e foi removido.
     val estimatedDistanceKm: Double,
     val estimatedTimeMinutes: Int,
+    /**
+     * Distância em linha reta do trecho até esta parada, na sequência
+     * otimizada da rota (da origem ou da parada anterior até aqui).
+     * Nulo quando a parada não entrou na otimização (sem coordenadas
+     * ou sem origem conhecida).
+     */
+    val routeLegKm: Double? = null,
     val items: List<DeliveryItem>,
     val payment: PaymentSummary,
     val customerPin: String = "4821",
