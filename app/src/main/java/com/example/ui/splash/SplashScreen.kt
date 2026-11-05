@@ -21,17 +21,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.fake.AppContainer
-import com.example.platform.DriverBiometricAccess
 import com.example.R
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
     onNavigateToLogin: (biometricAvailable: Boolean) -> Unit,
+    onNavigateAuthenticated: (hasAcceptedLink: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(Unit) {
@@ -42,7 +43,17 @@ fun SplashScreen(
         if (currentUser == null) {
             onNavigateToLogin(false)
         } else {
-            onNavigateToLogin(DriverBiometricAccess.isEnabledFor(currentUser.id))
+            // Sessão viva = entra DIRETO no app, sem passar pela tela de login
+            // (2.4.11). Antes, mesmo com a sessão restaurada, a Splash mandava
+            // todo mundo ao login e a "volta" dependia da biometria — sem
+            // biometria cadastrada, o motoboy tinha que digitar a senha a cada
+            // abertura, como se tivesse sido deslogado. O destino espelha o do
+            // login por senha: decide depois da primeira consulta real de
+            // store_drivers (vínculo aceito -> painel; sem vínculo -> vínculo).
+            val hasLink = runCatching {
+                AppContainer.linkRepository.getLinks().first().any { it.status.name == "ACCEPTED" }
+            }.getOrDefault(false)
+            onNavigateAuthenticated(hasLink)
         }
     }
 

@@ -46,6 +46,9 @@ fun AppNavHost(
                     navController.navigate(Screen.Login.createRoute(biometricAvailable)) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
+                },
+                onNavigateAuthenticated = { hasLink ->
+                    navigateAfterAuthentication(hasLink, Screen.Splash.route)
                 }
             )
         }
