@@ -71,7 +71,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.os.PowerManager
-import com.example.platform.PresenceHealth
+import com.example.platform.PresenceHealthChecker
 import com.example.ui.onboarding.TrackingHealthCard
 import android.widget.Toast
 import com.example.data.model.DriverLinkStatus
@@ -123,10 +123,10 @@ fun ProfileScreen(
         mutableStateOf(profile.id.isNotBlank() && DriverBiometricAccess.isEnabledFor(profile.id))
     }
 
-    var presenceHealth by remember { mutableStateOf(PresenceHealth.snapshot(context)) }
+    var presenceHealth by remember { mutableStateOf(PresenceHealthChecker.snapshot(context)) }
     LaunchedEffect(Unit) {
         while (true) {
-            presenceHealth = PresenceHealth.snapshot(context)
+            presenceHealth = PresenceHealthChecker.snapshot(context)
             delay(5_000)
         }
     }
