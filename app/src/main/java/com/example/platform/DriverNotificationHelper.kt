@@ -148,6 +148,36 @@ object DriverNotificationHelper {
             .notify(ORDER_NOTIFICATION_ID + 1, notification)
     }
 
+    const val PRESENCE_NOTIFICATION_ID = 2003
+
+    fun presenceNotification(context: Context): Notification {
+        val openApp = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val contentIntent = openApp?.let {
+            PendingIntent.getActivity(
+                context,
+                PRESENCE_NOTIFICATION_ID,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        val offlineIntent = PendingIntent.getService(
+            context,
+            PRESENCE_NOTIFICATION_ID + 1,
+            Intent(context, DriverPresenceService::class.java).setAction(DriverPresenceService.ACTION_GO_OFFLINE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(context, CHANNEL_TRACKING)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
+            .setContentTitle("Você está ONLINE")
+            .setContentText("Sua localização está sendo compartilhada com suas lojas enquanto você estiver online.")
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .apply { if (contentIntent != null) setContentIntent(contentIntent) }
+            .addAction(0, "Ficar offline", offlineIntent)
+            .build()
+    }
+
     fun trackingNotification(context: Context): Notification =
         NotificationCompat.Builder(context, CHANNEL_TRACKING)
             .setSmallIcon(R.drawable.ic_stat_driver_helmet)
