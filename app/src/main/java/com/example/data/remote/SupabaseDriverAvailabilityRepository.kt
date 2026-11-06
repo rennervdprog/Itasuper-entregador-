@@ -5,6 +5,8 @@ import android.util.Log
 import com.example.ItaSuperApplication
 import com.example.data.model.DriverAvailability
 import com.example.data.repository.DriverAvailabilityRepository
+import com.example.platform.DriverPresenceService
+import com.example.platform.PresenceControl
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
@@ -63,10 +65,14 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
 
         if (online) {
             ensureDriverRecord(user.id, online = true)
+            // Presença no mapa: serviço em primeiro plano publica a posição
+            // enquanto o motoboy estiver Online (ver DriverPresenceService).
+            PresenceControl.start(ItaSuperApplication.appContext)
             publishAvailability()
             refreshPresenceIfEligible("ao ativar Online")
         } else {
             updateDriverOnline(user.id, online = false)
+            PresenceControl.stop(ItaSuperApplication.appContext)
             stopHeartbeatLoop()
             publishAvailability()
         }
@@ -82,6 +88,11 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
 
         val status = loadDriverStatus(userId)
         onlineIntent = readOnlineIntent(userId, fallback = status?.isOnline == true)
+        if (onlineIntent) {
+            // Processo reaberto (ou reiniciado) com o motoboy Online: garante
+            // o serviço de presença de volta — é o que mantém o mapa vivo.
+            runCatching { PresenceControl.start(ItaSuperApplication.appContext) }
+        }
         publishAvailability()
         refreshPresenceIfEligible("ao restaurar sessão")
     }
@@ -129,6 +140,7 @@ class SupabaseDriverAvailabilityRepository : DriverAvailabilityRepository {
      * invalidar a sessão. Falhas de rede não impedem o logout nem cancelam rota.
      */
     override suspend fun prepareForLogout(): Result<Unit> {
+        runCatching { PresenceControl.stop(ItaSuperApplication.appContext) }
         val result = runCatching {
             val userId = supabase.auth.currentUserOrNull()?.id ?: return@runCatching
             onlineIntent = false

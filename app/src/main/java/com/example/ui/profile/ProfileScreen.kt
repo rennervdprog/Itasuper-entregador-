@@ -70,6 +70,9 @@ import androidx.compose.ui.unit.sp
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.os.PowerManager
+import com.example.platform.PresenceHealthChecker
+import com.example.ui.onboarding.TrackingHealthCard
 import android.widget.Toast
 import com.example.data.model.DriverLinkStatus
 import com.example.data.model.StoreDriverLink
@@ -118,6 +121,14 @@ fun ProfileScreen(
     val biometricActivity = context as? FragmentActivity
     var biometricEnabled by remember(profile.id) {
         mutableStateOf(profile.id.isNotBlank() && DriverBiometricAccess.isEnabledFor(profile.id))
+    }
+
+    var presenceHealth by remember { mutableStateOf(PresenceHealthChecker.snapshot(context)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            presenceHealth = PresenceHealthChecker.snapshot(context)
+            delay(5_000)
+        }
     }
 
     fun enableBiometricsFromProfile() {
@@ -454,6 +465,10 @@ fun ProfileScreen(
                     }
                 }
             }
+
+            // Saúde do rastreio: o que falta configurar neste aparelho p/ o
+            // mapa da loja não perder o motoboy enquanto ele estiver Online.
+            TrackingHealthCard(health = presenceHealth)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),

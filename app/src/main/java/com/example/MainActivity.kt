@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -40,7 +41,9 @@ class MainActivity : FragmentActivity() {
         DriverPermissionStatus(
             notificationsGranted = false,
             locationGranted = false,
-            overlayGranted = false
+            overlayGranted = false,
+            backgroundLocationGranted = false,
+            batteryUnrestricted = false
         )
     )
 
@@ -91,7 +94,9 @@ class MainActivity : FragmentActivity() {
                                             onRequestNotifications = ::requestNotificationPermission,
                                             onRequestLocation = ::requestLocationPermission,
                                             onRequestOverlay = ::openOverlaySettings,
-                                            onContinue = { refreshPermissionStatus() }
+                                            onContinue = { refreshPermissionStatus() },
+                                            onRequestBackgroundLocation = ::requestBackgroundLocationPermission,
+                                            onRequestBattery = ::requestBatteryUnrestricted
                                         )
                                     }
                                 }
@@ -183,13 +188,57 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    // Etapa 2 da localização: o Android 11+ não concede "o tempo todo" por
+    // diálogo — o motoboy escolhe na tela de permissões do app. Em Android
+    // 10, a permissão pode ser pedida direto por requestPermissions.
+    private fun requestBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } else if (Build.VERSION.SDK_INT >= 29) {
+            requestPermissions(
+                arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                BACKGROUND_LOCATION_PERMISSION_REQUEST
+            )
+        } else {
+            refreshPermissionStatus()
+        }
+    }
+
+    // Isenção de otimização de bateria: diálogo direto do sistema (1 toque).
+    private fun requestBatteryUnrestricted() {
+        val powerManager = getSystemService(PowerManager::class.java)
+        if (powerManager?.isIgnoringBatteryOptimizations(packageName) == true) {
+            refreshPermissionStatus()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            startActivity(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } else {
+            refreshPermissionStatus()
+        }
+    }
+
     private fun refreshPermissionStatus() {
         permissionStatus = DriverPermissionStatus(
             notificationsGranted = Build.VERSION.SDK_INT < 33 ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
             locationGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED,
-            overlayGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+            overlayGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this),
+            backgroundLocationGranted = Build.VERSION.SDK_INT < 29 ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED,
+            batteryUnrestricted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true
         )
     }
 
@@ -198,5 +247,6 @@ class MainActivity : FragmentActivity() {
         const val EXTRA_VIEW_ORDER_ID = "extra_view_order_id"
         const val NOTIFICATION_PERMISSION_REQUEST = 1104
         const val LOCATION_PERMISSION_REQUEST = 1105
+        const val BACKGROUND_LOCATION_PERMISSION_REQUEST = 1106
     }
 }

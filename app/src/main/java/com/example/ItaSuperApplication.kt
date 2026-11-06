@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.example.platform.DriverNotificationHelper
 import com.example.platform.DriverTrackingService
+import com.example.platform.DriverPresenceService
 
 class ItaSuperApplication : Application() {
     override fun onCreate() {
@@ -16,6 +17,7 @@ class ItaSuperApplication : Application() {
         // Se há entrega ativa persistida mas o serviço não está rodando, reinicia o tracking.
         // Cobre: update do app, serviço morto pelo sistema sem START_STICKY funcionar, etc.
         runCatching { restartTrackingIfNeeded() }
+        runCatching { restartPresenceIfNeeded() }
     }
 
     private fun restartTrackingIfNeeded() {
@@ -31,6 +33,16 @@ class ItaSuperApplication : Application() {
             ContextCompat.startForegroundService(this, intent)
         }.onFailure {
             Log.e(TAG, "Falha ao reiniciar tracking", it)
+        }
+    }
+
+    /** Se o motoboy estava Online, garante o serviço de presença rodando. */
+    private fun restartPresenceIfNeeded() {
+        if (!DriverPresenceService.shouldBeRunning(this)) return
+        runCatching {
+            ContextCompat.startForegroundService(this, Intent(this, DriverPresenceService::class.java))
+        }.onFailure {
+            Log.w(TAG, "Presença não religada na abertura do processo", it)
         }
     }
 

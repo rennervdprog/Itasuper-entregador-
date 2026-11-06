@@ -44,7 +44,13 @@ private val SecondaryInk = Color(0xFF334155)
 data class DriverPermissionStatus(
     val notificationsGranted: Boolean,
     val locationGranted: Boolean,
-    val overlayGranted: Boolean
+    val overlayGranted: Boolean,
+    // Etapa 2 da localização ("Permitir o tempo todo") e a isenção de
+    // bateria: são o que mantém o motoboy visível no mapa da loja enquanto
+    // ele estiver Online. Recomendadas, mas NÃO travam a entrada — sem elas
+    // o app funciona em modo limitado e a Saúde do rastreio avisa.
+    val backgroundLocationGranted: Boolean = false,
+    val batteryUnrestricted: Boolean = false
 ) {
     // O alerta de nova entrega depende da sobreposição para funcionar fora da
     // tela do app. Por isso, o onboarding só termina quando as três permissões
@@ -59,7 +65,9 @@ fun DriverPermissionsScreen(
     onRequestNotifications: () -> Unit,
     onRequestLocation: () -> Unit,
     onRequestOverlay: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: () -> Unit,
+    onRequestBackgroundLocation: () -> Unit = {},
+    onRequestBattery: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -126,6 +134,26 @@ fun DriverPermissionsScreen(
             granted = status.overlayGranted,
             buttonLabel = "Permitir sobreposição",
             onRequest = onRequestOverlay,
+            opensSettings = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        PermissionCard(
+            icon = Icons.Default.LocationOn,
+            title = "Localização o tempo todo",
+            description = "Enquanto você estiver ONLINE, suas lojas veem sua posição no mapa — mesmo com o app fechado. Ao ficar OFFLINE, o compartilhamento para na hora. Na tela que abrir, escolha \"Permitir o tempo todo\".",
+            granted = status.backgroundLocationGranted,
+            buttonLabel = "Permitir o tempo todo",
+            onRequest = onRequestBackgroundLocation,
+            opensSettings = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        PermissionCard(
+            icon = Icons.Default.NotificationsActive,
+            title = "Bateria sem restrição",
+            description = "Impede o Android de \"dormir\" o app e atrasar sua posição no mapa durante o turno.",
+            granted = status.batteryUnrestricted,
+            buttonLabel = "Liberar bateria",
+            onRequest = onRequestBattery,
             opensSettings = true
         )
 

@@ -76,7 +76,7 @@ abstract class DriverTrackingDatabase : RoomDatabase() {
 @Serializable
 data class DriverLocationInsert(
     @SerialName("driver_user_id") val driverUserId: String,
-    @SerialName("order_id") val orderId: String,
+    @SerialName("order_id") val orderId: String? = null,
     val latitude: Double,
     val longitude: Double,
     val accuracy: Double? = null,
@@ -86,6 +86,103 @@ data class DriverLocationInsert(
         timeZone = java.util.TimeZone.getTimeZone("UTC")
     }.format(java.util.Date())
 )
+
+/**
+ * Publica a posição do motoboy em driver_locations (1 linha por motoboy),
+ * com buffer offline em Room e retry. Compartilhado entre o rastreio de
+ * entrega (DriverTrackingService) e a presença online (DriverPresenceService).
+ * A sessão é resolvida a cada chamada: em segundo plano, o Supabase restaura
+ * a sessão durável do disco antes do primeiro uso do cliente.
+ */
+object DriverLocationPublisher {
+    private const val TAG = "DriverLocationPublish"
+    private const val BUFFER_KEY_PRESENCE = "__presence__"
+    private const val MAX_RETRY_ATTEMPTS = 3
+    private const val RETRY_DELAY_MS = 30_000L
+
+    @Volatile var lastPublishedAtMs: Long = 0L
+        private set
+
+    suspend fun publish(context: Context, orderId: String?, location: Location, attempt: Int = 1) {
+        val userId = ItaSuperSupabase.client.auth.currentUserOrNull()?.id
+        if (userId == null) {
+            Log.e(TAG, "Usuário não autenticado - impossível enviar localização")
+            return
+        }
+        val payload = DriverLocationInsert(
+            driverUserId = userId,
+            orderId = orderId,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            accuracy = location.accuracy.toDouble(),
+            speed = location.speed.toDouble(),
+            heading = location.bearing.toDouble()
+        )
+        try {
+            ItaSuperSupabase.client.from("driver_locations").upsert(payload) {
+                onConflict = "driver_user_id"
+            }
+            lastPublishedAtMs = System.currentTimeMillis()
+            syncPending(context)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Falha ao enviar localização", t)
+            try {
+                DriverTrackingDatabase.get(context).locations().upsert(
+                    PendingDriverLocation(
+                        orderId = orderId ?: BUFFER_KEY_PRESENCE,
+                        driverUserId = userId,
+                        latitude = payload.latitude,
+                        longitude = payload.longitude,
+                        accuracy = payload.accuracy,
+                        speed = payload.speed,
+                        heading = payload.heading
+                    )
+                )
+            } catch (dbError: Throwable) {
+                Log.e(TAG, "Falha ao salvar no buffer offline", dbError)
+            }
+            if (attempt < MAX_RETRY_ATTEMPTS) {
+                kotlinx.coroutines.delay(RETRY_DELAY_MS)
+                publish(context, orderId, location, attempt + 1)
+            } else {
+                Log.e(TAG, "Máximo de tentativas atingido. Localização ficou no buffer offline.")
+            }
+        }
+    }
+
+    /** Envia o buffer offline; a linha de presença guarda só a posição mais nova. */
+    suspend fun syncPending(context: Context) {
+        try {
+            val dao = DriverTrackingDatabase.get(context).locations()
+            val pending = dao.getAll()
+            if (pending.isEmpty()) {
+                return
+            }
+            for (p in pending) {
+                try {
+                    ItaSuperSupabase.client.from("driver_locations").upsert(
+                        DriverLocationInsert(
+                            driverUserId = p.driverUserId,
+                            orderId = p.orderId.takeUnless { it == BUFFER_KEY_PRESENCE },
+                            latitude = p.latitude,
+                            longitude = p.longitude,
+                            accuracy = p.accuracy,
+                            speed = p.speed,
+                            heading = p.heading
+                        )
+                    ) {
+                        onConflict = "driver_user_id"
+                    }
+                    dao.delete(p.orderId)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Falha ao sincronizar localização pendente", t)
+                }
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Erro ao sincronizar buffer offline", t)
+        }
+    }
+}
 
 class DriverTrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -206,89 +303,16 @@ class DriverTrackingService : Service() {
         fusedClient.requestLocationUpdates(request, callback, mainLooper)
     }
 
-    private suspend fun persistLocation(orderId: String, location: Location, attempt: Int = 1) {
-        val userId = ItaSuperSupabase.client.auth.currentUserOrNull()?.id
-        if (userId == null) {
-            Log.e(TAG, "Usuário não autenticado - impossível enviar localização")
-            return
-        }
-        val payload = DriverLocationInsert(
-            driverUserId = userId,
-            orderId = orderId,
-            latitude = location.latitude,
-            longitude = location.longitude,
-            accuracy = location.accuracy.toDouble(),
-            speed = location.speed.toDouble(),
-            heading = location.bearing.toDouble()
-        )
-        try {
-            ItaSuperSupabase.client.from("driver_locations").upsert(payload) {
-                onConflict = "driver_user_id"
-            }
-            lastPublishedAtMs = System.currentTimeMillis()
-            // Após sucesso, tenta sincronizar o buffer offline
-            syncPendingLocations()
-        } catch (t: Throwable) {
-            Log.e(TAG, "Falha ao enviar localização", t)
-            // Salva no buffer offline
-            try {
-                DriverTrackingDatabase.get(this).locations().upsert(
-                    PendingDriverLocation(
-                        orderId = orderId,
-                        driverUserId = userId,
-                        latitude = payload.latitude,
-                        longitude = payload.longitude,
-                        accuracy = payload.accuracy,
-                        speed = payload.speed,
-                        heading = payload.heading
-                    )
-                )
-            } catch (dbError: Throwable) {
-                Log.e(TAG, "Falha ao salvar no buffer offline", dbError)
-            }
-            // Retry com backoff simples: 30s, máximo 3 tentativas
-            if (attempt < MAX_RETRY_ATTEMPTS) {
-                kotlinx.coroutines.delay(RETRY_DELAY_MS)
-                persistLocation(orderId, location, attempt + 1)
-            } else {
-                Log.e(TAG, "Máximo de tentativas atingido. Localização ficou no buffer offline.")
-            }
-        }
+    private suspend fun persistLocation(orderId: String, location: Location) {
+        DriverLocationPublisher.publish(this, orderId, location)
+        lastPublishedAtMs = DriverLocationPublisher.lastPublishedAtMs
     }
 
     /**
      * Sincroniza o buffer offline: envia cada localização pendente e remove as que tiveram sucesso.
      */
     private suspend fun syncPendingLocations() {
-        try {
-            val dao = DriverTrackingDatabase.get(this).locations()
-            val pending = dao.getAll()
-            if (pending.isEmpty()) {
-                return
-            }
-            for (p in pending) {
-                try {
-                    ItaSuperSupabase.client.from("driver_locations").upsert(
-                        DriverLocationInsert(
-                            driverUserId = p.driverUserId,
-                            orderId = p.orderId,
-                            latitude = p.latitude,
-                            longitude = p.longitude,
-                            accuracy = p.accuracy,
-                            speed = p.speed,
-                            heading = p.heading
-                        )
-                    ) {
-                        onConflict = "driver_user_id"
-                    }
-                    dao.delete(p.orderId)
-                } catch (t: Throwable) {
-                    Log.e(TAG, "Falha ao sincronizar localização pendente", t)
-                }
-            }
-        } catch (t: Throwable) {
-            Log.e(TAG, "Erro ao sincronizar buffer offline", t)
-        }
+        DriverLocationPublisher.syncPending(this)
     }
 
     private fun detectArrival(orderId: String, location: Location) {
@@ -326,8 +350,6 @@ class DriverTrackingService : Service() {
         private const val TAG = "DriverTracking"
         private const val MAX_ACCURACY_METERS = 25f
         private const val WEAK_FIX_FALLBACK_MS = 45_000L
-        private const val MAX_RETRY_ATTEMPTS = 3
-        private const val RETRY_DELAY_MS = 30_000L
 
         private const val EXTRA_ORDER_ID = "order_id"
         private const val EXTRA_DESTINATION_LATITUDE = "destination_latitude"
