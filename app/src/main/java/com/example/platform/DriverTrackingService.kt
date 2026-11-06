@@ -101,14 +101,36 @@ class DriverTrackingService : Service() {
         getSharedPreferences(PREFS_TRACKING, MODE_PRIVATE)
     }
 
+    @Volatile private var lastPublishedAtMs: Long = 0L
+    @Volatile private var lastWeakFix: Location? = null
+
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val orderId = activeOrderId ?: return
-            result.lastLocation?.let { location ->
-                serviceScope.launch {
-                    persistLocation(orderId, location)
-                    detectArrival(orderId, location)
+            // Usa o fix MAIS NOVO do lote (lastLocation pode vir velho do cache).
+            val location = result.locations.maxByOrNull { it.time } ?: return
+            // Precisão: descarta leitura com erro > 25 m. Válvula de segurança:
+            // se NADA foi publicado há mais de 45s, publica a melhor leitura
+            // fraca guardada p/ o motoboy não sumir do mapa (sinal ruim).
+            val accurate = !location.hasAccuracy() || location.accuracy <= MAX_ACCURACY_METERS
+            if (!accurate) {
+                val prev = lastWeakFix
+                if (prev == null || (location.hasAccuracy() && (!prev.hasAccuracy() || location.accuracy <= prev.accuracy))) {
+                    lastWeakFix = location
                 }
+                val sincePublish = System.currentTimeMillis() - lastPublishedAtMs
+                if (lastPublishedAtMs != 0L && sincePublish < WEAK_FIX_FALLBACK_MS) return
+                val weak = lastWeakFix ?: location
+                lastWeakFix = null
+                serviceScope.launch {
+                    persistLocation(orderId, weak)
+                    detectArrival(orderId, weak)
+                }
+                return
+            }
+            serviceScope.launch {
+                persistLocation(orderId, location)
+                detectArrival(orderId, location)
             }
         }
     }
@@ -176,9 +198,9 @@ class DriverTrackingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun requestLocationUpdates() {
-        val request = LocationRequest.Builder(15_000L)
-            .setMinUpdateIntervalMillis(7_500L)
-            .setMinUpdateDistanceMeters(20f)
+        val request = LocationRequest.Builder(5_000L)
+            .setMinUpdateIntervalMillis(2_500L)
+            .setMinUpdateDistanceMeters(5f)
             .setPriority(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY)
             .build()
         fusedClient.requestLocationUpdates(request, callback, mainLooper)
@@ -203,6 +225,7 @@ class DriverTrackingService : Service() {
             ItaSuperSupabase.client.from("driver_locations").upsert(payload) {
                 onConflict = "driver_user_id"
             }
+            lastPublishedAtMs = System.currentTimeMillis()
             // Após sucesso, tenta sincronizar o buffer offline
             syncPendingLocations()
         } catch (t: Throwable) {
@@ -301,6 +324,8 @@ class DriverTrackingService : Service() {
 
     companion object {
         private const val TAG = "DriverTracking"
+        private const val MAX_ACCURACY_METERS = 25f
+        private const val WEAK_FIX_FALLBACK_MS = 45_000L
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val RETRY_DELAY_MS = 30_000L
 
