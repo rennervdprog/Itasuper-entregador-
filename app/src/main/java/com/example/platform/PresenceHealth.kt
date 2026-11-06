@@ -17,7 +17,7 @@ import androidx.core.content.ContextCompat
  * (autostart da Xiaomi, "nunca dormir" da Samsung), que nenhum código
  * consegue ligar sozinho.
  */
-data class PresenceHealth(
+data class PresenceHealthState(
     val locationForeground: Boolean,
     val locationBackground: Boolean,
     val batteryUnrestricted: Boolean,
@@ -30,9 +30,9 @@ data class PresenceHealth(
         get() = locationForeground && locationBackground && batteryUnrestricted
 }
 
-object PresenceHealth {
+object PresenceHealthChecker {
 
-    fun snapshot(context: Context): PresenceHealth {
+    fun snapshot(context: Context): PresenceHealthState {
         val foreground = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED ||
@@ -51,7 +51,7 @@ object PresenceHealth {
                 context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         val (hint, intent) = manufacturerStep(context)
-        return PresenceHealth(
+        return PresenceHealthState(
             locationForeground = foreground,
             locationBackground = background,
             batteryUnrestricted = battery,
