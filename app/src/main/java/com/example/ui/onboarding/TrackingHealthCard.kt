@@ -25,7 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
-import com.example.platform.PresenceHealth
+import com.example.platform.PresenceHealthChecker
+import com.example.platform.PresenceHealthState
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaGreen
 import com.example.ui.theme.ItaOrange
@@ -39,7 +40,7 @@ import com.example.ui.theme.ItaTextSecondary
  * o turno inteiro. Cada item pendente é tocável e abre a tela certa.
  */
 @Composable
-fun TrackingHealthCard(health: PresenceHealth) {
+fun TrackingHealthCard(health: PresenceHealthState) {
     val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -69,22 +70,22 @@ fun TrackingHealthCard(health: PresenceHealth) {
             HealthRow(
                 ok = health.locationForeground,
                 label = "Localização ativada",
-                onFix = { context.startActivity(PresenceHealth.appDetailsIntent(context)) }
+                onFix = { context.startActivity(PresenceHealthChecker.appDetailsIntent(context)) }
             )
             HealthRow(
                 ok = health.locationBackground,
                 label = "Localização \"o tempo todo\"",
-                onFix = { context.startActivity(PresenceHealth.appDetailsIntent(context)) }
+                onFix = { context.startActivity(PresenceHealthChecker.appDetailsIntent(context)) }
             )
             HealthRow(
                 ok = health.batteryUnrestricted,
                 label = "Bateria sem restrição",
-                onFix = { context.startActivity(PresenceHealth.batteryIntent(context)) }
+                onFix = { context.startActivity(PresenceHealthChecker.batteryIntent(context)) }
             )
             HealthRow(
                 ok = health.notificationsGranted,
                 label = "Notificações ativadas",
-                onFix = { context.startActivity(PresenceHealth.appDetailsIntent(context)) }
+                onFix = { context.startActivity(PresenceHealthChecker.appDetailsIntent(context)) }
             )
 
             val hint = health.manufacturerHint
