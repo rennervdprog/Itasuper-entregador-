@@ -188,7 +188,7 @@ class DriverPresenceService : Service() {
         val request = if (moving) {
             LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, MOVING_INTERVAL_MS)
                 .setMinUpdateIntervalMillis(MOVING_MIN_INTERVAL_MS)
-                .setMinUpdateDistanceMeters(25f)
+                .setMinUpdateDistanceMeters(0f)
                 .build()
         } else {
             LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, STILL_REQUEST_INTERVAL_MS)

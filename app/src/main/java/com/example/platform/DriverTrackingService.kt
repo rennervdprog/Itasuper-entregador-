@@ -295,9 +295,13 @@ class DriverTrackingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun requestLocationUpdates() {
+        // Sem distância mínima: com 5f o aparelho parado não gerava leitura
+        // nova e a posição vencia no mapa do lojista (teste real 2026-11-06).
+        // O teto de espera garante entrega do lote mesmo sem movimento.
         val request = LocationRequest.Builder(5_000L)
             .setMinUpdateIntervalMillis(2_500L)
-            .setMinUpdateDistanceMeters(5f)
+            .setMinUpdateDistanceMeters(0f)
+            .setMaxUpdateDelayMillis(30_000L)
             .setPriority(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY)
             .build()
         fusedClient.requestLocationUpdates(request, callback, mainLooper)
