@@ -158,7 +158,10 @@ fun DriverPermissionsScreen(
     var stepIndex by remember { mutableStateOf(0) }
     val step = steps[stepIndex]
     val isLast = stepIndex == steps.lastIndex
-    val advance = { if (isLast) onContinue() else stepIndex++ }
+    val advance: () -> Unit = {
+        if (isLast) onContinue() else stepIndex++
+        Unit
+    }
 
     Column(
         modifier = Modifier
