@@ -284,7 +284,13 @@ fun OrdersScreen(
                             if (filteredAvailableOrders.isNotEmpty()) {
                                 AvailableOrdersSection(
                                     orders = filteredAvailableOrders,
-                                    hasActiveRoute = activeRouteOrders.isNotEmpty(),
+                                    // Fase 1: a trava de aceite só vale com a rota
+                                    // já despachada. Pedido aceito ainda na loja
+                                    // pode receber companhia na mesma rota.
+                                    hasActiveRoute = activeRouteOrders.any {
+                                        it.status == OrderDeliveryStatus.SAIU_ENTREGA ||
+                                            it.status == OrderDeliveryStatus.EM_TRANSITO
+                                    },
                                     onAcceptOrder = { viewModel.acceptOrder(it) },
                                     onAcceptAll = { viewModel.acceptAllAvailable() }
                                 )
