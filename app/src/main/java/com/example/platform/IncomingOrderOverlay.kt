@@ -34,6 +34,17 @@ object IncomingOrderOverlay {
     private var activeView: View? = null
 
     @Volatile
+    private var shownOrderId: String? = null
+
+    /** Pedido cuja sobreposição está na tela agora (ou null). */
+    fun shownOrderId(): String? = shownOrderId
+
+    /** Fecha a sobreposição se ela for deste pedido (oferta expirada). */
+    fun dismissIfShowing(orderId: String) {
+        if (shownOrderId == orderId) dismiss()
+    }
+
+    @Volatile
     private var lastDiagnostic: String = "Nenhum teste de painel executado."
 
     fun lastDiagnostic(): String = lastDiagnostic
@@ -257,6 +268,10 @@ object IncomingOrderOverlay {
             manager.addView(root, params)
             windowManager = manager
             activeView = root
+            shownOrderId = orderId
+            // Fase 2: a sobreposição não é mais muda — som e vibração do
+            // alerta acompanham a tela cheia.
+            DriverNotificationHelper.alertAttention(appContext)
             lastDiagnostic = "Painel visual em tela inteira exibido com sucesso."
             return true
         } catch (error: WindowManager.BadTokenException) {
@@ -282,6 +297,7 @@ object IncomingOrderOverlay {
         }
         activeView = null
         windowManager = null
+        shownOrderId = null
     }
 
     private fun roundedBackground(color: Int, radius: Int) = GradientDrawable().apply {

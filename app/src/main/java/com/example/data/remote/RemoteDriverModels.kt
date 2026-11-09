@@ -80,7 +80,10 @@ data class OrderRow(
     @SerialName("client_lng") val clientLng: Double? = null,
     val metadata: JsonObject? = null,
     @SerialName("assigned_driver_id") val assignedDriverId: String? = null,
-    @SerialName("order_number") val orderNumber: Long? = null
+    @SerialName("order_number") val orderNumber: Long? = null,
+    // Fase 2: distingue "cliente confirmou o recebimento" de finalização
+    // pelo próprio motoboy, pra avisar só no primeiro caso.
+    @SerialName("delivery_confirmed_by_client") val deliveryConfirmedByClient: Boolean? = null
 )
 
 @Serializable

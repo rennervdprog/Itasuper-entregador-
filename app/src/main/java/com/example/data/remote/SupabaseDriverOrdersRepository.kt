@@ -14,6 +14,7 @@ import com.example.data.model.LinkedStore
 import com.example.platform.AddressGeocodingCache
 import com.example.platform.DriverTrackingService
 import com.example.platform.DriverNotificationHelper
+import com.example.platform.IncomingOrderOverlay
 import com.example.platform.NetworkMonitor
 import com.example.data.repository.DriverAvailabilityRepository
 import com.example.data.repository.DriverOrdersRepository
@@ -77,6 +78,12 @@ class SupabaseDriverOrdersRepository(
     private var pendingRefreshJob: Job? = null
     private var pendingInsertBaseline: Set<String>? = null
     private var pendingInsertHadDepartedRoute: Boolean = false
+
+    // Fase 2: foto da rota ativa da atualização anterior (pedido →
+    // código curto), pra detectar as saídas que merecem aviso:
+    // cancelamento e confirmação de recebimento pelo cliente. null até
+    // a primeira carga — transição só se anuncia com base conhecida.
+    private var previousRouteSnapshot: Map<String, String>? = null
 
     init {
         // A primeira sincronização não pode derrubar o aplicativo se rede, RLS
@@ -229,7 +236,7 @@ class SupabaseDriverOrdersRepository(
                 "id", "client_id", "store_id", "status", "subtotal", "delivery_fee", "total_price",
                 "payment_method", "neighborhood", "address_details", "delivery_cep", "delivery_city", "delivery_state",
                 "created_at", "driver_id", "delivery_pin", "confirmed_at", "needs_change", "change_for", "client_lat", "client_lng",
-                "assigned_driver_id", "order_number", "metadata"
+                "assigned_driver_id", "order_number", "metadata", "delivery_confirmed_by_client"
             )) {
                 filter { isIn("store_id", storeIds) }
             }
@@ -272,6 +279,53 @@ class SupabaseDriverOrdersRepository(
 
         availableOrders.value = available
         activeRouteOrders.value = active
+
+        // Fase 2 — avisos de transição da rota: pedido que SAIU da rota
+        // ativa desde a última atualização porque foi CANCELADO ou
+        // porque o CLIENTE confirmou o recebimento gera notificação.
+        // (Finalização pelo próprio motoboy, com PIN, não avisa — ele
+        // já sabe.) E a sobreposição de oferta que não existe mais
+        // (outro motoboy aceitou, loja cancelou) se fecha sozinha.
+        runCatching {
+            val appContext = ItaSuperApplication.appContext
+            val currentActiveIds = active.map { it.id }.toSet()
+            val previous = previousRouteSnapshot
+            if (previous != null) {
+                val rowsByIdNow = rows.associateBy { it.id }
+                previous.forEach { (orderId, shortCode) ->
+                    if (orderId in currentActiveIds) return@forEach
+                    val row = rowsByIdNow[orderId] ?: return@forEach
+                    when {
+                        row.status.equals("cancelado", ignoreCase = true) ->
+                            DriverNotificationHelper.showOrderEvent(
+                                appContext,
+                                orderId,
+                                "Pedido cancelado",
+                                "$shortCode saiu da sua rota: o pedido foi cancelado."
+                            )
+                        (row.status.equals("finalizado", ignoreCase = true) ||
+                            row.status.equals("entregue", ignoreCase = true)) &&
+                            row.deliveryConfirmedByClient == true ->
+                            DriverNotificationHelper.showOrderEvent(
+                                appContext,
+                                orderId,
+                                "Cliente confirmou o recebimento",
+                                "$shortCode foi concluído pelo cliente — não precisa do PIN."
+                            )
+                    }
+                }
+            }
+            previousRouteSnapshot = active.associate { it.id to it.shortCode }
+
+            IncomingOrderOverlay.shownOrderId()?.let { overlayOrderId ->
+                val stillOffered = available.any { it.id == overlayOrderId }
+                val mineNow = overlayOrderId in currentActiveIds
+                if (!stillOffered && !mineNow) {
+                    IncomingOrderOverlay.dismissIfShowing(overlayOrderId)
+                    DriverNotificationHelper.cancelIncomingOrderNotification(appContext, overlayOrderId)
+                }
+            }
+        }
         // A RPC de finalização grava 'finalizado' p/ vínculo aceito, mas
         // 'entregue' p/ motoboy sem vínculo aceito com pagamento físico —
         // os dois contam como entrega concluída (auditoria A4).

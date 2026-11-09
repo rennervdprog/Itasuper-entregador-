@@ -235,7 +235,9 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
             neighborhood = order.neighborhood.orEmpty(),
             itemCount = itemCount,
             paymentMethod = order.paymentMethod.orEmpty(),
-            totalLabel = order.totalPrice?.let(::formatCurrency).orEmpty()
+            // Fase 2: o valor aparece ROTULADO no alerta ("Total do
+            // pedido: R$ X") — antes era o número solto, sem dizer o que é.
+            totalLabel = order.totalPrice?.let { "Total do pedido: ${formatCurrency(it)}" }.orEmpty()
         )
     }
 
