@@ -143,7 +143,11 @@ data class PaymentSummary(
                 isMachinePixMethod(normalized) -> "Pix na maquininha — cobrar na entrega"
                 isOnlinePaidMethod(normalized) -> "Pix direto — já pago"
                 normalized.contains("cart") || normalized.contains("crédito") || normalized.contains("credito") || normalized.contains("débito") || normalized.contains("debito") -> "Cartão — levar maquininha"
-                normalized.contains("dinheiro") || normalized.contains("cash") -> "Dinheiro — cobrar na entrega"
+                // 'money' é o método legado em inglês: sem esta linha ele
+                // caía na instrução genérica, sem o "cobrar na entrega"
+                // (Fase 3.3). 'card'/'card_delivery' já caem no ramo do
+                // cartão pelo trecho "cart".
+                normalized.contains("dinheiro") || normalized.contains("cash") || normalized.contains("money") -> "Dinheiro — cobrar na entrega"
                 else -> method.replace('_', ' ').ifBlank { "Pagamento não informado" }
             }
         }
