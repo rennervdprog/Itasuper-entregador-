@@ -1,7 +1,7 @@
 package com.example.ui.onboarding
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,35 +10,41 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.PhoneInTalk
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ItaGreen
 import com.example.ui.theme.ItaOrange
-
-private val AccessibleOrange = Color(0xFFC2410C)
-private val PrimaryInk = Color(0xFF0F172A)
-private val SecondaryInk = Color(0xFF334155)
+import com.example.ui.theme.ItaTextPrimary
+import com.example.ui.theme.ItaTextSecondary
 
 /** Permissões necessárias para alertas de entrega e navegação do motoboy. */
 data class DriverPermissionStatus(
@@ -60,6 +66,27 @@ data class DriverPermissionStatus(
         get() = notificationsGranted && locationGranted
 }
 
+private data class PermissionStep(
+    val icon: ImageVector,
+    val title: String,
+    val description: String,
+    val grantedLabel: String,
+    val actionLabel: String,
+    val hint: String?,
+    val granted: Boolean,
+    val mandatory: Boolean,
+    val onRequest: () -> Unit
+)
+
+/**
+ * Fluxo de permissões EM ETAPAS (redesign aprovado pelo Renner em
+ * 2026-11-09): uma permissão por tela, com progresso, em vez da lista
+ * única de cartões. Nada avança sozinho — cada passo só anda no toque
+ * (Continuar/Pular), e conceder no meio do passo só troca o botão para
+ * "Continuar". Obrigatórias (notificações, localização) não têm Pular;
+ * as recomendadas têm, e o que ficar pulado continua cobrado no cartão
+ * "Saúde do rastreio" do Perfil.
+ */
 @Composable
 fun DriverPermissionsScreen(
     status: DriverPermissionStatus,
@@ -70,171 +97,264 @@ fun DriverPermissionsScreen(
     onRequestBackgroundLocation: () -> Unit = {},
     onRequestBattery: () -> Unit = {}
 ) {
+    val steps = listOf(
+        PermissionStep(
+            icon = Icons.Filled.NotificationsActive,
+            title = "Receba o aviso de nova entrega",
+            description = "Sem as notificações, você não fica sabendo quando cai um pedido — e perde a entrega pra outro motoboy.",
+            grantedLabel = "Notificações ativadas",
+            actionLabel = "Permitir notificações",
+            hint = "O Android vai pedir a confirmação. Esta é obrigatória para entrar no app.",
+            granted = status.notificationsGranted,
+            mandatory = true,
+            onRequest = onRequestNotifications
+        ),
+        PermissionStep(
+            icon = Icons.Filled.LocationOn,
+            title = "Sua posição durante o turno",
+            description = "A localização calcula as distâncias, monta sua rota e mostra pra loja onde você está enquanto estiver online.",
+            grantedLabel = "Localização ativada",
+            actionLabel = "Permitir localização",
+            hint = "Na tela do Android, escolha “Permitir durante o uso do app”. Esta é obrigatória para entrar no app.",
+            granted = status.locationGranted,
+            mandatory = true,
+            onRequest = onRequestLocation
+        ),
+        PermissionStep(
+            icon = Icons.Filled.Layers,
+            title = "Alerta em tela cheia",
+            description = "A chamada da nova entrega aparece por cima de qualquer app, com som e vibração. Sem isto, o aviso chega só pela notificação.",
+            grantedLabel = "Sobreposição ativada",
+            actionLabel = "Permitir sobreposição",
+            hint = null,
+            granted = status.overlayGranted,
+            mandatory = false,
+            onRequest = onRequestOverlay
+        ),
+        PermissionStep(
+            icon = Icons.Filled.Schedule,
+            title = "Visível mesmo com o app fechado",
+            description = "Enquanto você estiver ONLINE, a loja continua vendo sua posição no mapa mesmo com o app em segundo plano. Ficou offline, para na hora.",
+            grantedLabel = "Localização o tempo todo ativada",
+            actionLabel = "Permitir o tempo todo",
+            hint = null,
+            granted = status.backgroundLocationGranted,
+            mandatory = false,
+            onRequest = onRequestBackgroundLocation
+        ),
+        PermissionStep(
+            icon = Icons.Filled.BatteryChargingFull,
+            title = "O Android não “dorme” o app",
+            description = "Sem a liberação da bateria, o sistema pode congelar o ItaSuper no meio do turno — sua posição some do mapa e o aviso atrasa.",
+            grantedLabel = "Bateria liberada",
+            actionLabel = "Liberar bateria",
+            hint = null,
+            granted = status.batteryUnrestricted,
+            mandatory = false,
+            onRequest = onRequestBattery
+        )
+    )
+
+    var stepIndex by remember { mutableStateOf(0) }
+    val step = steps[stepIndex]
+    val isLast = stepIndex == steps.lastIndex
+    val advance = { if (isLast) onContinue() else stepIndex++ }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFAFAFA))
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 18.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.NotificationsActive,
-            contentDescription = null,
-            tint = ItaOrange,
-            modifier = Modifier.size(58.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Ative seus alertas de entrega",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = PrimaryInk,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Permissões necessárias para trabalhar",
-            fontSize = 14.sp,
-            color = AccessibleOrange,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Ative notificações e localização para entrar. As demais são recomendadas — dá para concluir depois, no Perfil.",
-            fontSize = 15.sp,
-            color = SecondaryInk,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-
-        PermissionCard(
-            icon = Icons.Default.NotificationsActive,
-            title = "Notificações de pedidos",
-            description = "Avisa quando uma nova entrega estiver disponível.",
-            granted = status.notificationsGranted,
-            buttonLabel = "Permitir notificações",
-            onRequest = onRequestNotifications
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Default.LocationOn,
-            title = "Localização",
-            description = "Calcula distância e permite acompanhar a rota ativa.",
-            granted = status.locationGranted,
-            buttonLabel = "Permitir localização",
-            onRequest = onRequestLocation
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Default.OpenInNew,
-            title = "Exibir sobre outros apps (recomendado)",
-            description = "Mostra a chamada visual de nova entrega mesmo quando o app estiver fora da tela. Sem ele, o aviso chega pela notificação.",
-            granted = status.overlayGranted,
-            buttonLabel = "Permitir sobreposição",
-            onRequest = onRequestOverlay,
-            opensSettings = true
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Default.LocationOn,
-            title = "Localização o tempo todo",
-            description = "Enquanto você estiver ONLINE, suas lojas veem sua posição no mapa — mesmo com o app fechado. Ao ficar OFFLINE, o compartilhamento para na hora. Na tela que abrir, escolha \"Permitir o tempo todo\".",
-            granted = status.backgroundLocationGranted,
-            buttonLabel = "Permitir o tempo todo",
-            onRequest = onRequestBackgroundLocation,
-            opensSettings = true
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        PermissionCard(
-            icon = Icons.Default.NotificationsActive,
-            title = "Bateria sem restrição",
-            description = "Impede o Android de \"dormir\" o app e atrasar sua posição no mapa durante o turno.",
-            granted = status.batteryUnrestricted,
-            buttonLabel = "Liberar bateria",
-            onRequest = onRequestBattery,
-            opensSettings = true
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(
-            onClick = onContinue,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = status.allGranted,
-            colors = ButtonDefaults.buttonColors(containerColor = AccessibleOrange),
-            shape = RoundedCornerShape(14.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            if (stepIndex > 0) {
+                IconButton(onClick = { stepIndex-- }) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Voltar",
+                        tint = ItaTextSecondary
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+            Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "Continuar para entrar",
-                modifier = Modifier.padding(vertical = 5.dp),
-                fontWeight = FontWeight.Bold
+                text = "PASSO ${stepIndex + 1} DE ${steps.size}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = Color(0xFF94A3B8)
             )
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.size(48.dp))
         }
-        if (!status.allGranted) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Conclua notificações e localização para entrar no aplicativo.",
-                color = SecondaryInk,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
 
-@Composable
-private fun PermissionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    granted: Boolean,
-    buttonLabel: String,
-    onRequest: () -> Unit,
-    opensSettings: Boolean = false
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (granted) Color(0xFF15803D) else AccessibleOrange,
-                    modifier = Modifier.size(24.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            steps.indices.forEach { i ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (i <= stepIndex) ItaOrange else Color(0xFFE2E8F0))
                 )
-                Spacer(modifier = Modifier.size(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PrimaryInk)
+                if (i < steps.lastIndex) Spacer(modifier = Modifier.width(5.dp))
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(top = 42.dp)
+                .size(104.dp)
+                .clip(CircleShape)
+                .background(
+                    if (step.granted) ItaGreen.copy(alpha = 0.12f)
+                    else ItaOrange.copy(alpha = 0.12f)
+                )
+                .align(Alignment.CenterHorizontally),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (step.granted) Icons.Filled.Check else step.icon,
+                contentDescription = null,
+                tint = if (step.granted) ItaGreen else ItaOrange,
+                modifier = Modifier.size(50.dp)
+            )
+        }
+
+        if (!step.mandatory) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(ItaOrange)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    text = "RECOMENDADO",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.8.sp
+                )
+            }
+        }
+
+        Text(
+            text = step.title,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = ItaTextPrimary,
+            textAlign = TextAlign.Center,
+            lineHeight = 27.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp)
+        )
+
+        if (step.granted) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = ItaGreen,
+                    modifier = Modifier.size(19.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = step.grantedLabel,
+                    color = ItaGreen,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+
+        Text(
+            text = step.description,
+            fontSize = 15.sp,
+            color = ItaTextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 23.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (step.granted) {
+            Button(
+                onClick = advance,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text(
+                    text = if (isLast) "Começar a usar o app" else "Continuar",
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        } else {
+            Button(
+                onClick = step.onRequest,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text(
+                    text = step.actionLabel,
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+            if (step.mandatory) {
+                if (step.hint != null) {
                     Text(
-                        text = if (granted) "Ativada" else "Pendente",
-                        fontSize = 13.sp,
-                        color = if (granted) Color(0xFF166534) else Color(0xFF92400E)
+                        text = step.hint,
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 17.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp)
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = advance,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Pular por agora",
+                        color = ItaTextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(description, color = SecondaryInk, fontSize = 14.sp, lineHeight = 20.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            if (granted) {
-                Text("Permissão concedida", color = Color(0xFF166534), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            } else {
-                OutlinedButton(
-                    onClick = onRequest,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccessibleOrange)
-                ) {
-                    Text(buttonLabel, color = AccessibleOrange, fontWeight = FontWeight.SemiBold)
-                    if (opensSettings) {
-                        Spacer(modifier = Modifier.size(5.dp))
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp), tint = AccessibleOrange)
-                    }
-                }
-            }
         }
+        Spacer(modifier = Modifier.height(6.dp))
     }
 }
