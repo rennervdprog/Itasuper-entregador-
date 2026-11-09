@@ -7,7 +7,14 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -18,9 +25,15 @@ import kotlin.math.absoluteValue
 
 object DriverNotificationHelper {
     const val CHANNEL_ORDERS = "driver_orders"
+    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts"
     const val CHANNEL_TRACKING = "driver_tracking"
     private const val ORDER_NOTIFICATION_ID = 2001
     const val TRACKING_NOTIFICATION_ID = 2002
+
+    // Padrão do alerta de pedido novo (Fase 2): vibra-pausa-vibra-pausa-
+    // vibra longo. O MESMO padrão vale pro canal de notificação e pra
+    // sobreposição em tela cheia, pra experiência ser uma só.
+    private val ALERT_VIBRATION_PATTERN = longArrayOf(0, 400, 200, 400, 200, 700)
 
     fun createChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -30,6 +43,27 @@ object DriverNotificationHelper {
                 "Pedidos do entregador",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply { description = "Alertas de novos pedidos e atualizações de entrega" }
+        )
+        // Canal DEDICADO do alerta de pedido novo (Fase 2): som de alarme
+        // do aparelho + vibração própria. Canal de notificação é imutável
+        // depois de criado — por isso um id novo, sem brigar com o antigo.
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ORDER_ALERTS,
+                "Alerta de novo pedido",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Som e vibração do aviso de nova entrega disponível"
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                enableVibration(true)
+                vibrationPattern = ALERT_VIBRATION_PATTERN
+            }
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -82,7 +116,7 @@ object DriverNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ORDERS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ORDER_ALERTS)
             .setSmallIcon(R.drawable.ic_stat_driver_helmet)
             .setContentTitle("Nova entrega disponível")
             .setContentText("$storeName • ${alert?.destinationAddress?.ifBlank { neighborhood } ?: neighborhood}")
@@ -98,6 +132,9 @@ object DriverNotificationHelper {
                 )
             )
             .setContentIntent(contentIntent)
+            // Fase 2: com a tela apagada, a notificação acorda o aparelho
+            // já na tela da oferta (o aceite continua dentro do app).
+            .setFullScreenIntent(contentIntent, true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -146,6 +183,76 @@ object DriverNotificationHelper {
             .build()
         context.getSystemService(NotificationManager::class.java)
             .notify(ORDER_NOTIFICATION_ID + 1, notification)
+    }
+
+    private var activeRingtone: Ringtone? = null
+
+    /**
+     * Chama a atenção na hora (Fase 2): vibração no padrão do alerta +
+     * som de alarme do aparelho por alguns segundos. Usado pela
+     * sobreposição em tela cheia, que não passa por canal de
+     * notificação — sem isso, o aviso era só visual.
+     */
+    fun alertAttention(context: Context) {
+        runCatching {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(
+                    VibrationEffect.createWaveform(ALERT_VIBRATION_PATTERN, -1)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(ALERT_VIBRATION_PATTERN, -1)
+            }
+        }
+        runCatching {
+            activeRingtone?.stop()
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = RingtoneManager.getRingtone(context.applicationContext, uri)
+            activeRingtone = ringtone
+            ringtone.play()
+            Handler(Looper.getMainLooper()).postDelayed({
+                runCatching { ringtone.stop() }
+                if (activeRingtone === ringtone) activeRingtone = null
+            }, 4_500)
+        }
+    }
+
+    /**
+     * Aviso de evento de um pedido específico (Fase 2): cancelamento,
+     * confirmação do cliente etc. Id próprio por pedido, pra um aviso
+     * não apagar o outro na bandeja.
+     */
+    fun showOrderEvent(context: Context, orderId: String, title: String, body: String) {
+        if (!canNotify(context) || orderId.isBlank()) return
+        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val contentIntent = launch?.let {
+            PendingIntent.getActivity(
+                context,
+                ("event-" + orderId).hashCode(),
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        val builder = NotificationCompat.Builder(context, CHANNEL_ORDERS)
+            .setSmallIcon(R.drawable.ic_stat_driver_helmet)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+        if (contentIntent != null) builder.setContentIntent(contentIntent)
+        context.getSystemService(NotificationManager::class.java)
+            .notify(ORDER_NOTIFICATION_ID + 30_000 + (orderId.hashCode().absoluteValue % 10_000), builder.build())
+    }
+
+    /** Apaga da bandeja o aviso de um pedido que não está mais disponível. */
+    fun cancelIncomingOrderNotification(context: Context, orderId: String) {
+        if (orderId.isBlank()) return
+        context.getSystemService(NotificationManager::class.java)
+            .cancel(ORDER_NOTIFICATION_ID + (orderId.hashCode().absoluteValue % 10_000))
     }
 
     const val PRESENCE_NOTIFICATION_ID = 2003
