@@ -23,6 +23,9 @@ import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Count
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.RealtimeChannel
@@ -238,7 +241,17 @@ class SupabaseDriverOrdersRepository(
                 "created_at", "driver_id", "delivery_pin", "confirmed_at", "needs_change", "change_for", "client_lat", "client_lng",
                 "assigned_driver_id", "order_number", "metadata", "delivery_confirmed_by_client"
             )) {
-                filter { isIn("store_id", storeIds) }
+                filter {
+                    isIn("store_id", storeIds)
+                    // Fase 4.3: recorte no servidor — a lista de trabalho
+                    // só precisa dos pedidos ABERTOS (disponíveis + rota).
+                    // Concluídos e cancelados antigos não descem mais a
+                    // cada atualização: o histórico tem repositório
+                    // próprio, o contador do dia vem de contagem dedicada
+                    // e os avisos da Fase 2 buscam o estado de quem saiu
+                    // da rota pontualmente.
+                    isIn("status", listOf("pronto_para_entrega", "saiu_entrega", "em_transito"))
+                }
             }
             .decodeList<OrderRow>()
             .sortedBy { it.createdAt.orEmpty() }
@@ -291,10 +304,15 @@ class SupabaseDriverOrdersRepository(
             val currentActiveIds = active.map { it.id }.toSet()
             val previous = previousRouteSnapshot
             if (previous != null) {
-                val rowsByIdNow = rows.associateBy { it.id }
+                // Fase 4.3: quem saiu da rota não está mais na consulta
+                // principal (só abertos) — o estado atual desses poucos
+                // pedidos vem de uma busca pontual, só com as colunas
+                // que o aviso precisa.
+                val leftIds = previous.keys.filter { it !in currentActiveIds }
+                val transitionById = fetchOrderTransitions(leftIds)
                 previous.forEach { (orderId, shortCode) ->
                     if (orderId in currentActiveIds) return@forEach
-                    val row = rowsByIdNow[orderId] ?: return@forEach
+                    val row = transitionById[orderId] ?: return@forEach
                     when {
                         row.status.equals("cancelado", ignoreCase = true) ->
                             DriverNotificationHelper.showOrderEvent(
@@ -326,16 +344,63 @@ class SupabaseDriverOrdersRepository(
                 }
             }
         }
-        // A RPC de finalização grava 'finalizado' p/ vínculo aceito, mas
-        // 'entregue' p/ motoboy sem vínculo aceito com pagamento físico —
-        // os dois contam como entrega concluída (auditoria A4).
-        todayCompletedCount.value = rows.count {
-            it.driverId == userId &&
-                (it.status.equals("finalizado", ignoreCase = true) ||
-                    it.status.equals("entregue", ignoreCase = true))
+        // Fase 4.3: o contador "Concluídas" agora é o do DIA de verdade
+        // — o nome do fluxo sempre prometeu isso, mas ele contava o
+        // histórico inteiro que a consulta antiga baixava. Contagem no
+        // servidor (nenhuma linha desce): finalizado E entregue contam
+        // (a RPC grava um ou outro conforme o vínculo — auditoria A4),
+        // pela data de confirmação, no dia do aparelho.
+        runCatching {
+            todayCompletedCount.value = fetchTodayCompletedCount(userId)
         }
         availabilityRepository.setRouteActive(active.isNotEmpty())
         ensureRealtime(userId, storeIds, forceReconnect = forceRealtimeReconnect)
+    }
+
+    /** Estado mínimo de um pedido que saiu da rota (Fases 2 + 4.3). */
+    @Serializable
+    private data class OrderTransitionRow(
+        val id: String,
+        val status: String,
+        @SerialName("delivery_confirmed_by_client") val deliveryConfirmedByClient: Boolean? = null
+    )
+
+    private suspend fun fetchOrderTransitions(ids: List<String>): Map<String, OrderTransitionRow> {
+        if (ids.isEmpty()) return emptyMap()
+        return runCatching {
+            supabase.from("orders")
+                .select(columns = Columns.list("id", "status", "delivery_confirmed_by_client")) {
+                    filter { isIn("id", ids) }
+                }
+                .decodeList<OrderTransitionRow>()
+                .associateBy { it.id }
+        }.getOrElse { emptyMap() }
+    }
+
+    /**
+     * Concluídas de HOJE pelo servidor (Fase 4.3): contagem exata sem
+     * baixar nenhuma linha. O dia é o do aparelho (meia-noite local) e a
+     * data é a da confirmação da entrega.
+     */
+    private suspend fun fetchTodayCompletedCount(userId: String): Int {
+        val startOfDay = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.time
+        val startIso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
+            .format(startOfDay)
+        val result = supabase.from("orders").select(columns = Columns.list("id")) {
+            count(Count.EXACT)
+            limit(0)
+            filter {
+                eq("driver_id", userId)
+                isIn("status", listOf("finalizado", "entregue"))
+                gte("confirmed_at", startIso)
+            }
+        }
+        return result.countOrNull()?.toInt() ?: 0
     }
 
     private suspend fun fetchAcceptedStoreIds(userId: String): List<String> = supabase
