@@ -97,18 +97,33 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
         val client = ItaSuperSupabase.client
         val userId = client.auth.currentUserOrNull()?.id
         val activeStatuses = listOf("pronto_para_entrega", "saiu_entrega", "em_transito")
-        val hasActiveRoute = if (userId == null) false else runCatching {
+        val myActiveOrders = if (userId == null) emptyList() else runCatching {
             client.from("orders")
-                .select(columns = Columns.list("id")) {
+                .select(columns = Columns.list("id", "status")) {
                     filter {
                         eq("driver_id", userId)
                         isIn("status", activeStatuses)
                     }
                 }
                 .decodeList<IncomingOrderState>()
-                .isNotEmpty()
-        }.getOrDefault(false)
-        if (hasActiveRoute) return
+        }.getOrDefault(emptyList())
+        // Fase 1: pedido aceito ainda na loja NÃO abafa o alerta (ele pode
+        // entrar na mesma rota). Só a rota já despachada (saiu_entrega /
+        // em_transito) troca o alerta de tela cheia por um aviso discreto.
+        val routeDeparted = myActiveOrders.any {
+            it.status == "saiu_entrega" || it.status == "em_transito"
+        }
+        if (routeDeparted) {
+            val storeName = data["store_name"].orEmpty().ifBlank { "Loja ItaSuper" }
+            runCatching {
+                DriverNotificationHelper.showRemotePush(
+                    applicationContext,
+                    "Novo pedido pronto — $storeName",
+                    "Ele fica esperando e entra na sua próxima rota, quando você voltar à loja."
+                )
+            }
+            return
+        }
 
         val order = runCatching {
             client.from("orders")
