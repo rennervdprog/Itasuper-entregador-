@@ -23,7 +23,11 @@ data class PresenceHealthState(
     val batteryUnrestricted: Boolean,
     val notificationsGranted: Boolean,
     val manufacturerHint: String?,
-    val manufacturerIntent: Intent?
+    val manufacturerIntent: Intent?,
+    // Fase 4.1: a sobreposição virou recomendada. Enquanto não concedida,
+    // o app roda com "alertas reduzidos" (notificação em vez da tela
+    // cheia por cima dos outros apps) — e este cartão é o aviso disso.
+    val overlayGranted: Boolean = false
 ) {
     /** Tudo certo p/ o mapa ao vivo funcionar o turno inteiro. */
     val allOk: Boolean
@@ -50,6 +54,8 @@ object PresenceHealthChecker {
             ContextCompat.checkSelfPermission(
                 context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
+        val overlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            Settings.canDrawOverlays(context)
         val (hint, intent) = manufacturerStep(context)
         return PresenceHealthState(
             locationForeground = foreground,
@@ -57,9 +63,17 @@ object PresenceHealthChecker {
             batteryUnrestricted = battery,
             notificationsGranted = notifications,
             manufacturerHint = hint,
-            manufacturerIntent = intent
+            manufacturerIntent = intent,
+            overlayGranted = overlay
         )
     }
+
+    /** Tela do sistema para permitir "exibir sobre outros apps". */
+    fun overlayIntent(context: Context): Intent =
+        Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}")
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** Tela de permissões do app (onde se escolhe "Permitir o tempo todo"). */
     fun appDetailsIntent(context: Context): Intent =

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -116,6 +117,12 @@ fun MotoboyRegistrationScreen(
                 onValueChange = { viewModel.onRegistrationChange(vehicle = it) },
                 label = "Modelo do veículo",
                 icon = { Icon(Icons.Default.TwoWheeler, null) }
+            )
+            RegistrationField(
+                value = state.vehiclePlate,
+                onValueChange = { viewModel.onRegistrationChange(vehiclePlate = it) },
+                label = "Placa do veículo",
+                icon = { Icon(Icons.Default.Badge, null) }
             )
             RegistrationField(
                 value = state.whatsapp,

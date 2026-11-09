@@ -19,6 +19,7 @@ interface AuthRepository {
         fullName: String,
         document: String,
         vehicle: String,
+        vehiclePlate: String,
         whatsapp: String,
         email: String,
         password: String

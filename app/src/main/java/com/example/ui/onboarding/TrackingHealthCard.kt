@@ -87,6 +87,11 @@ fun TrackingHealthCard(health: PresenceHealthState) {
                 label = "Notificações ativadas",
                 onFix = { context.startActivity(PresenceHealthChecker.appDetailsIntent(context)) }
             )
+            HealthRow(
+                ok = health.overlayGranted,
+                label = "Alertas em tela cheia — sem isto, alertas reduzidos",
+                onFix = { context.startActivity(PresenceHealthChecker.overlayIntent(context)) }
+            )
 
             val hint = health.manufacturerHint
             if (hint != null) {

@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +50,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fase 4.2: checagem de versão nova (silenciosa se falhar).
+        com.example.platform.AppUpdateChecker.checkOnce(applicationContext)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         handleAcceptedOrderIntent(intent)
         handleViewOrderIntent(intent)
@@ -78,9 +81,22 @@ class MainActivity : FragmentActivity() {
                             // de entrar/cadastrar.
                             val currentUser by AppContainer.authRepository.getCurrentUser()
                                 .collectAsState(initial = null)
+                            // Fase 4.1 (correção): com a sobreposição
+                            // opcional, as obrigatórias podem ficar
+                            // completas NO MEIO do fluxo — e a camada
+                            // sumia sozinha antes de o motoboy ver as
+                            // recomendadas (sobreposição, localização
+                            // o tempo todo, bateria). O fluxo, uma vez
+                            // aberto, fica aberto até ele tocar em
+                            // "Continuar para entrar".
+                            var permissionsFlowDone by remember { mutableStateOf(false) }
+                            var permissionsFlowActive by remember { mutableStateOf(false) }
+                            LaunchedEffect(permissionStatus.allGranted) {
+                                if (!permissionStatus.allGranted) permissionsFlowActive = true
+                            }
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AppNavHost()
-                                if (currentUser != null && !permissionStatus.allGranted) {
+                                if (currentUser != null && permissionsFlowActive && !permissionsFlowDone) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -94,7 +110,10 @@ class MainActivity : FragmentActivity() {
                                             onRequestNotifications = ::requestNotificationPermission,
                                             onRequestLocation = ::requestLocationPermission,
                                             onRequestOverlay = ::openOverlaySettings,
-                                            onContinue = { refreshPermissionStatus() },
+                                            onContinue = {
+                                                permissionsFlowDone = true
+                                                refreshPermissionStatus()
+                                            },
                                             onRequestBackgroundLocation = ::requestBackgroundLocationPermission,
                                             onRequestBattery = ::requestBatteryUnrestricted
                                         )

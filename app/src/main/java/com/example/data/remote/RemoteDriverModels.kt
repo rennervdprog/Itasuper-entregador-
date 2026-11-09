@@ -11,6 +11,7 @@ data class ProfileRow(
     val phone: String? = null,
     val role: String? = null,
     val vehicle: String? = null,
+    @SerialName("vehicle_plate") val vehiclePlate: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 

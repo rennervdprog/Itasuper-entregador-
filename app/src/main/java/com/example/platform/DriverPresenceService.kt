@@ -186,7 +186,12 @@ class DriverPresenceService : Service() {
     private fun requestUpdates(moving: Boolean) {
         if (!hasLocationPermission()) return
         val request = if (moving) {
-            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, MOVING_INTERVAL_MS)
+            // Fase 4.3: presença NÃO é rastreio de entrega. Fora de rota,
+            // precisão equilibrada a cada 30 s basta pra loja ver o
+            // motoboy no mapa — alta precisão o turno todo drenava a
+            // bateria. Em entrega ativa, quem publica é o
+            // DriverTrackingService, que segue em alta precisão.
+            LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, MOVING_INTERVAL_MS)
                 .setMinUpdateIntervalMillis(MOVING_MIN_INTERVAL_MS)
                 .setMinUpdateDistanceMeters(0f)
                 .build()
@@ -215,8 +220,11 @@ class DriverPresenceService : Service() {
         private const val KEY_ACTIVE_ORDER_ID = "active_order_id"
         private const val PREFS_PRESENCE = "itasuper_driver_presence"
 
-        private const val MOVING_INTERVAL_MS = 15_000L
-        private const val MOVING_MIN_INTERVAL_MS = 15_000L
+        // Fase 4.3: cadência da presença em movimento — 30 s (era 15 s
+        // em alta precisão). A aba da frota considera fresca a posição
+        // de até 5 min, então 30 s mantém o mapa vivo gastando metade.
+        private const val MOVING_INTERVAL_MS = 30_000L
+        private const val MOVING_MIN_INTERVAL_MS = 30_000L
         private const val MOVING_DISPLACEMENT_M = 25f
         private const val MOVING_SPEED_MPS = 2.0f
         private const val STILL_AFTER_MS = 150_000L

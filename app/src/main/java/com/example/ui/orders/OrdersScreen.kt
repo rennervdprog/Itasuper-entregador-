@@ -3,6 +3,7 @@ package com.example.ui.orders
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PowerOff
@@ -102,6 +105,7 @@ fun OrdersScreen(
     val availability by viewModel.availability.collectAsState()
     val linkedStores by viewModel.linkedStores.collectAsState()
     val availableOrders by viewModel.availableOrders.collectAsState()
+    val updateInfo by com.example.platform.AppUpdateChecker.available.collectAsState()
     val activeRouteOrders by viewModel.activeRouteOrders.collectAsState()
     val todayCompletedCount by viewModel.todayCompletedCount.collectAsState()
     val navPreference by viewModel.navPreference.collectAsState()
@@ -204,6 +208,19 @@ fun OrdersScreen(
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
+                        // 0. Aviso de versão nova (Fase 4.2)
+                        if (updateInfo != null) {
+                            UpdateAvailableBanner(
+                                info = updateInfo!!,
+                                onDownload = {
+                                    com.example.platform.AppUpdateChecker.openDownload(context, updateInfo!!)
+                                },
+                                onDismiss = {
+                                    com.example.platform.AppUpdateChecker.dismiss(context)
+                                }
+                            )
+                        }
+
                         // 1. Local Connectivity Banner & Offline Sync Faixa
                         ConnectivityBanner(
                             offlineConfirmations = offlineConfirmations
@@ -593,6 +610,64 @@ private fun OnlineEmptyState(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text("Atualizar pedidos", color = ItaOrange, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Banner de versão nova (Fase 4.2) — some quando o motoboy baixa ou dispensa. */
+@Composable
+private fun UpdateAvailableBanner(
+    info: com.example.platform.DriverAppVersionInfo,
+    onDownload: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, ItaOrange)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.SystemUpdate,
+                contentDescription = null,
+                tint = ItaOrange,
+                modifier = Modifier.size(26.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Nova versão disponível: ${info.version}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = ItaSlate900
+                )
+                Text(
+                    text = "Atualize para receber as melhorias e correções.",
+                    fontSize = 12.sp,
+                    color = ItaSlate500
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Baixar agora",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ItaOrange,
+                    modifier = Modifier.clickable { onDownload() }
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Dispensar aviso",
+                    tint = ItaSlate500
+                )
+            }
         }
     }
 }
