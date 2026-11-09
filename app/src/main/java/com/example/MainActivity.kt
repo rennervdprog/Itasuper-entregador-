@@ -49,6 +49,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fase 4.2: checagem de versão nova (silenciosa se falhar).
+        com.example.platform.AppUpdateChecker.checkOnce(applicationContext)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         handleAcceptedOrderIntent(intent)
         handleViewOrderIntent(intent)
