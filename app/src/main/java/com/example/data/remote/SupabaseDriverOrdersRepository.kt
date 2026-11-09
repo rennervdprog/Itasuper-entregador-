@@ -76,7 +76,7 @@ class SupabaseDriverOrdersRepository(
     // pedido novo continuar com o mesmo comportamento.
     private var pendingRefreshJob: Job? = null
     private var pendingInsertBaseline: Set<String>? = null
-    private var pendingInsertHadActiveRoute: Boolean = false
+    private var pendingInsertHadDepartedRoute: Boolean = false
 
     init {
         // A primeira sincronização não pode derrubar o aplicativo se rede, RLS
@@ -434,22 +434,26 @@ class SupabaseDriverOrdersRepository(
      * Janela de coalescência de 600ms: eventos que chegam com um refresh já
      * agendado são absorvidos por ele. O aviso de pedido novo usa a foto
      * capturada no primeiro Insert da rajada (antes de qualquer refresh
-     * dela) e só dispara sem rota ativa — igual ao comportamento anterior,
-     * só que com 1 refresh por rajada em vez de 1 por evento.
+     * dela) e só dispara sem rota DESPACHADA (Fase 1: pedido aceito ainda
+     * na loja não abafa o aviso, pois pode entrar na mesma rota), com
+     * 1 refresh por rajada em vez de 1 por evento.
      */
     private fun requestCoalescedRefresh(isInsert: Boolean) {
         if (isInsert && pendingInsertBaseline == null) {
             pendingInsertBaseline = availableOrders.value.map { it.id }.toSet()
-            pendingInsertHadActiveRoute = activeRouteOrders.value.isNotEmpty()
+            pendingInsertHadDepartedRoute = activeRouteOrders.value.any {
+                it.status == OrderDeliveryStatus.SAIU_ENTREGA ||
+                    it.status == OrderDeliveryStatus.EM_TRANSITO
+            }
         }
         if (pendingRefreshJob?.isActive == true) return
         pendingRefreshJob = scope.launch {
             delay(600)
             val baseline = pendingInsertBaseline
-            val hadActiveRoute = pendingInsertHadActiveRoute
+            val hadDepartedRoute = pendingInsertHadDepartedRoute
             pendingInsertBaseline = null
             runCatching { refreshAll() }
-            if (baseline != null && !hadActiveRoute) {
+            if (baseline != null && !hadDepartedRoute) {
                 val newAvailableOrder = availableOrders.value.firstOrNull { it.id !in baseline }
                 newAvailableOrder?.let { order ->
                     runCatching {
