@@ -94,6 +94,17 @@ object DriverExternalActions {
         }
 
         val limited = stops.take(10)
+        // Fase 2: nada de corte silencioso — passando de 10 paradas, o
+        // motoboy é avisado ANTES de o Maps abrir.
+        if (stops.size > limited.size) {
+            runCatching {
+                android.widget.Toast.makeText(
+                    context,
+                    "Rota com ${stops.size} entregas: o Google Maps mostra as ${limited.size} primeiras paradas. As demais continuam no app, na ordem da rota.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
         val url = buildString {
             append("https://www.google.com/maps/dir/?api=1")
             append("&travelmode=driving")
