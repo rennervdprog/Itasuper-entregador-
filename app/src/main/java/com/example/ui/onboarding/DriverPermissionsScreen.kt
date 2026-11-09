@@ -52,11 +52,12 @@ data class DriverPermissionStatus(
     val backgroundLocationGranted: Boolean = false,
     val batteryUnrestricted: Boolean = false
 ) {
-    // O alerta de nova entrega depende da sobreposição para funcionar fora da
-    // tela do app. Por isso, o onboarding só termina quando as três permissões
-    // forem confirmadas; em Android antigo, overlayGranted já vem como true.
+    // Fase 4.1: a sobreposição NÃO trava mais a entrada. Sem ela, o alerta
+    // de nova entrega chega pela notificação em tela cheia (Fase 2) — modo
+    // reduzido, avisado no cartão "Saúde do rastreio" do Perfil até o
+    // motoboy conceder. Obrigatórias: notificações + localização.
     val allGranted: Boolean
-        get() = notificationsGranted && locationGranted && overlayGranted
+        get() = notificationsGranted && locationGranted
 }
 
 @Composable
@@ -102,7 +103,7 @@ fun DriverPermissionsScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Ative as três permissões abaixo para receber pedidos e usar os alertas durante a rota.",
+            text = "Ative notificações e localização para entrar. As demais são recomendadas — dá para concluir depois, no Perfil.",
             fontSize = 15.sp,
             color = SecondaryInk,
             textAlign = TextAlign.Center
@@ -129,8 +130,8 @@ fun DriverPermissionsScreen(
         Spacer(modifier = Modifier.height(12.dp))
         PermissionCard(
             icon = Icons.Default.OpenInNew,
-            title = "Exibir sobre outros apps",
-            description = "Mostra a chamada visual de nova entrega mesmo quando o app estiver fora da tela.",
+            title = "Exibir sobre outros apps (recomendado)",
+            description = "Mostra a chamada visual de nova entrega mesmo quando o app estiver fora da tela. Sem ele, o aviso chega pela notificação.",
             granted = status.overlayGranted,
             buttonLabel = "Permitir sobreposição",
             onRequest = onRequestOverlay,
@@ -174,7 +175,7 @@ fun DriverPermissionsScreen(
         if (!status.allGranted) {
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Conclua notificações, localização e sobreposição para entrar no aplicativo.",
+                text = "Conclua notificações e localização para entrar no aplicativo.",
                 color = SecondaryInk,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
