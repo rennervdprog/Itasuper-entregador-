@@ -441,7 +441,15 @@ class SupabaseDriverOrdersRepository(
     private fun requestCoalescedRefresh(isInsert: Boolean) {
         if (isInsert && pendingInsertBaseline == null) {
             pendingInsertBaseline = availableOrders.value.map { it.id }.toSet()
-            pendingInsertHadDepartedRoute = activeRouteOrders.value.any {
+            // Além do estado em memória, vale a marca local do rastreio
+            // ("driver_tracking"/active_order_id): rota na rua é rota na
+            // rua, mesmo se o estado ainda não tiver sido recarregado.
+            val trackingActive = runCatching {
+                ItaSuperApplication.appContext
+                    .getSharedPreferences("driver_tracking", android.content.Context.MODE_PRIVATE)
+                    .getString("active_order_id", null) != null
+            }.getOrDefault(false)
+            pendingInsertHadDepartedRoute = trackingActive || activeRouteOrders.value.any {
                 it.status == OrderDeliveryStatus.SAIU_ENTREGA ||
                     it.status == OrderDeliveryStatus.EM_TRANSITO
             }
