@@ -61,6 +61,7 @@ class SupabaseAuthRepository(
         fullName: String,
         document: String,
         vehicle: String,
+        vehiclePlate: String,
         whatsapp: String,
         email: String,
         password: String
@@ -105,6 +106,20 @@ class SupabaseAuthRepository(
             put("_vehicle", normalizedVehicle)
             put("_whatsapp", normalizedWhatsapp)
         })
+
+        // Fase 4.4: a placa vai numa atualização direta do perfil (a
+        // RPC de cadastro não a recebe; a linha é do próprio usuário).
+        // Falhar aqui não derruba o cadastro — dá para completar depois.
+        val normalizedPlate = vehiclePlate.trim().uppercase()
+        if (normalizedPlate.isNotBlank()) {
+            runCatching {
+                supabase.from("profiles").update({
+                    set("vehicle_plate", normalizedPlate)
+                }) {
+                    filter { eq("user_id", supabase.auth.currentUserOrNull()?.id.orEmpty()) }
+                }
+            }
+        }
 
         loadAuthenticatedProfile()
     }.onSuccess { profile ->
@@ -158,7 +173,7 @@ class SupabaseAuthRepository(
 
         val profile = supabase
             .from("profiles")
-            .select(columns = Columns.list("user_id", "full_name", "phone", "role", "vehicle", "created_at")) {
+            .select(columns = Columns.list("user_id", "full_name", "phone", "role", "vehicle", "vehicle_plate", "created_at")) {
                 filter { eq("user_id", user.id) }
             }
             .decodeSingle<ProfileRow>()
@@ -175,7 +190,7 @@ class SupabaseAuthRepository(
             email = user.email ?: "",
             phone = profile.phone.orEmpty(),
             vehicleType = profile.vehicle.orEmpty(),
-            vehiclePlate = "",
+            vehiclePlate = profile.vehiclePlate.orEmpty(),
             rating = 0.0,
             completedDeliveriesCount = 0,
             memberSince = profile.createdAt?.take(10).orEmpty()
