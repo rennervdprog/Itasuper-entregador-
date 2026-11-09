@@ -55,7 +55,7 @@ fun MetricsRow(
             title = "Concluídas",
             value = completedCount.toString(),
             valueColor = if (completedCount > 0) ItaSlate900 else ItaSlate500,
-            subtitle = "no total",
+            subtitle = "hoje",
             modifier = Modifier.weight(1f),
             testTag = "metric_completed_orders"
         )
