@@ -48,7 +48,7 @@ class SupabaseDriverProfileRepository : DriverProfileRepository {
             ?: error("Sessão expirada. Entre novamente para continuar.")
         val row = supabase
             .from("profiles")
-            .select(columns = Columns.list("user_id", "full_name", "phone", "role", "vehicle", "created_at")) {
+            .select(columns = Columns.list("user_id", "full_name", "phone", "role", "vehicle", "vehicle_plate", "created_at")) {
                 filter { eq("user_id", user.id) }
             }
             .decodeSingle<ProfileRow>()
@@ -59,7 +59,7 @@ class SupabaseDriverProfileRepository : DriverProfileRepository {
             email = user.email.orEmpty(),
             phone = row.phone.orEmpty(),
             vehicleType = row.vehicle.orEmpty(),
-            vehiclePlate = "",
+            vehiclePlate = row.vehiclePlate.orEmpty(),
             rating = 0.0,
             completedDeliveriesCount = 0,
             memberSince = row.createdAt?.take(10).orEmpty()
