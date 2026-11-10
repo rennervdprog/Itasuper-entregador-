@@ -26,11 +26,13 @@ import kotlin.math.absoluteValue
 
 object DriverNotificationHelper {
     const val CHANNEL_ORDERS = "driver_orders"
-    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts_v2"
-    // Canal antigo do alerta (som de alarme do aparelho, Fase 2). Canal de
-    // notificação é imutável depois de criado, então o som próprio do
-    // ItaSuper (2.5.6) entra num canal novo e o antigo é apagado.
-    private const val CHANNEL_ORDER_ALERTS_LEGACY = "driver_order_alerts"
+    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts_v3"
+    // Canais antigos do alerta. Canal de notificação é imutável depois de
+    // criado, então cada troca de som entra num canal novo e os antigos
+    // são apagados: v1 = alarme do aparelho (Fase 2), v2 = primeiro som
+    // próprio do ItaSuper (2.5.6).
+    private const val CHANNEL_ORDER_ALERTS_LEGACY = "driver_order_alerts_v2"
+    private const val CHANNEL_ORDER_ALERTS_LEGACY_V1 = "driver_order_alerts"
     const val CHANNEL_TRACKING = "driver_tracking"
     private const val ORDER_NOTIFICATION_ID = 2001
     const val TRACKING_NOTIFICATION_ID = 2002
@@ -50,9 +52,10 @@ object DriverNotificationHelper {
             ).apply { description = "Alertas de novos pedidos e atualizações de entrega" }
         )
         // Canal DEDICADO do alerta de pedido novo (Fase 2): vibração
-        // própria e, desde a 2.5.6, o som próprio do ItaSuper no lugar do
-        // alarme do aparelho (o canal v1 é apagado logo abaixo).
+        // própria e o som próprio do ItaSuper (2.5.6; trocado pela v4
+        // "estilo 99" na 2.5.7 — os canais antigos são apagados logo abaixo).
         runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY) }
+        runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY_V1) }
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ORDER_ALERTS,
