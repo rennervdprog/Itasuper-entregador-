@@ -10,6 +10,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -25,7 +26,11 @@ import kotlin.math.absoluteValue
 
 object DriverNotificationHelper {
     const val CHANNEL_ORDERS = "driver_orders"
-    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts"
+    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts_v2"
+    // Canal antigo do alerta (som de alarme do aparelho, Fase 2). Canal de
+    // notificação é imutável depois de criado, então o som próprio do
+    // ItaSuper (2.5.6) entra num canal novo e o antigo é apagado.
+    private const val CHANNEL_ORDER_ALERTS_LEGACY = "driver_order_alerts"
     const val CHANNEL_TRACKING = "driver_tracking"
     private const val ORDER_NOTIFICATION_ID = 2001
     const val TRACKING_NOTIFICATION_ID = 2002
@@ -44,9 +49,10 @@ object DriverNotificationHelper {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply { description = "Alertas de novos pedidos e atualizações de entrega" }
         )
-        // Canal DEDICADO do alerta de pedido novo (Fase 2): som de alarme
-        // do aparelho + vibração própria. Canal de notificação é imutável
-        // depois de criado — por isso um id novo, sem brigar com o antigo.
+        // Canal DEDICADO do alerta de pedido novo (Fase 2): vibração
+        // própria e, desde a 2.5.6, o som próprio do ItaSuper no lugar do
+        // alarme do aparelho (o canal v1 é apagado logo abaixo).
+        runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY) }
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ORDER_ALERTS,
@@ -55,7 +61,7 @@ object DriverNotificationHelper {
             ).apply {
                 description = "Som e vibração do aviso de nova entrega disponível"
                 setSound(
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                    newOrderSoundUri(context),
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -185,11 +191,15 @@ object DriverNotificationHelper {
             .notify(ORDER_NOTIFICATION_ID + 1, notification)
     }
 
+    /** URI do som próprio do ItaSuper (res/raw/itasuper_new_order.ogg). */
+    private fun newOrderSoundUri(context: Context): Uri =
+        Uri.parse("android.resource://${context.packageName}/${R.raw.itasuper_new_order}")
+
     private var activeRingtone: Ringtone? = null
 
     /**
      * Chama a atenção na hora (Fase 2): vibração no padrão do alerta +
-     * som de alarme do aparelho por alguns segundos. Usado pela
+     * som próprio do ItaSuper (2.5.6) por alguns segundos. Usado pela
      * sobreposição em tela cheia, que não passa por canal de
      * notificação — sem isso, o aviso era só visual.
      */
@@ -207,9 +217,10 @@ object DriverNotificationHelper {
         }
         runCatching {
             activeRingtone?.stop()
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val ringtone = RingtoneManager.getRingtone(context.applicationContext, uri)
+            val ringtone = RingtoneManager.getRingtone(
+                context.applicationContext,
+                newOrderSoundUri(context)
+            )
             activeRingtone = ringtone
             ringtone.play()
             Handler(Looper.getMainLooper()).postDelayed({
