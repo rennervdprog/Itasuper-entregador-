@@ -96,6 +96,31 @@ object DriverNotificationHelper {
             .notify(ORDER_NOTIFICATION_ID, notification)
     }
 
+    // Guarda do som de pedido novo (correção da duplicação): UM único
+    // aviso sonoro por pedido numa janela de 60 s, não importa o caminho
+    // (push FCM, Realtime ou sobreposição). Quem reivindica primeiro toca;
+    // os demais caminhos do MESMO pedido são suprimidos. Sem isso, o FCM
+    // tocava o som do canal + o ringtone da sobreposição juntos, e o
+    // Realtime postava a mesma notificação de novo segundos depois.
+    private const val NEW_ORDER_ALERT_WINDOW_MS = 60_000L
+    private val newOrderAlertLock = Any()
+    private var lastNewOrderAlertOrderId: String? = null
+    private var lastNewOrderAlertAtMs: Long = 0L
+
+    private fun claimNewOrderAlert(orderId: String): Boolean {
+        if (orderId.isBlank()) return true
+        val now = System.currentTimeMillis()
+        synchronized(newOrderAlertLock) {
+            val sameOrder = lastNewOrderAlertOrderId == orderId
+            if (sameOrder && now - lastNewOrderAlertAtMs < NEW_ORDER_ALERT_WINDOW_MS) {
+                return false
+            }
+            lastNewOrderAlertOrderId = orderId
+            lastNewOrderAlertAtMs = now
+            return true
+        }
+    }
+
     fun showIncomingOrder(
         context: Context,
         orderId: String,
@@ -105,6 +130,10 @@ object DriverNotificationHelper {
         alert: IncomingOrderAlert? = null
     ) {
         if (!canNotify(context) || orderId.isBlank()) return
+        // Caminho duplicado do mesmo pedido (FCM x Realtime): a primeira
+        // postagem já soou pelo canal e continua na bandeja com o mesmo
+        // id de notificação — postar de novo só repetiria o som.
+        if (!claimNewOrderAlert(orderId)) return
 
         val launchIntent = IncomingOrderActivity.intent(
             context = context,
@@ -206,7 +235,14 @@ object DriverNotificationHelper {
      * sobreposição em tela cheia, que não passa por canal de
      * notificação — sem isso, o aviso era só visual.
      */
-    fun alertAttention(context: Context) {
+    fun alertAttention(context: Context, orderId: String? = null) {
+        // Sobreposição do MESMO pedido cuja notificação do canal já soou
+        // (o chamador do push posta a notificação antes de abrir a
+        // sobreposição): não tocar o ringtone nem vibrar de novo — o som
+        // do canal é o aviso único. Se ninguém reivindicou o pedido
+        // (ex.: notificações sem permissão), a sobreposição reivindica e
+        // toca como reserva.
+        if (!orderId.isNullOrBlank() && !claimNewOrderAlert(orderId)) return
         runCatching {
             val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
