@@ -271,7 +271,7 @@ object IncomingOrderOverlay {
             shownOrderId = orderId
             // Fase 2: a sobreposição não é mais muda — som e vibração do
             // alerta acompanham a tela cheia.
-            DriverNotificationHelper.alertAttention(appContext)
+            DriverNotificationHelper.alertAttention(appContext, orderId)
             lastDiagnostic = "Painel visual em tela inteira exibido com sucesso."
             return true
         } catch (error: WindowManager.BadTokenException) {
