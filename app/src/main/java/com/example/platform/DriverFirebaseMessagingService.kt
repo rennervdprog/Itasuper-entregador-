@@ -164,8 +164,12 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
         val alert = order?.let { buildIncomingAlert(it, data) } ?: fallbackAlert(orderId, data)
 
         // FCM e as consultas rodam em IO; a janela Android deve ser criada na Main.
+        // Ordem importa (correção do som duplicado): a notificação do
+        // canal toca PRIMEIRO e reivindica o aviso deste pedido; a
+        // sobreposição abre logo depois, só visual — o alertAttention
+        // dela reconhece a reivindicação e não toca o ringtone de novo.
         withContext(Dispatchers.Main.immediate) {
-            IncomingOrderOverlay.show(
+            DriverNotificationHelper.showIncomingOrder(
                 context = applicationContext,
                 orderId = alert.orderId,
                 storeName = alert.storeName,
@@ -173,7 +177,7 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
                 shortCode = alert.shortCode,
                 alert = alert
             )
-            DriverNotificationHelper.showIncomingOrder(
+            IncomingOrderOverlay.show(
                 context = applicationContext,
                 orderId = alert.orderId,
                 storeName = alert.storeName,
