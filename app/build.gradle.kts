@@ -21,8 +21,8 @@ android {
     applicationId = "app.itasuper.parceiro"
     minSdk = 24
     targetSdk = 36
-    versionCode = 64
-    versionName = "2.5.8"
+    versionCode = 65
+    versionName = "2.5.9"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
