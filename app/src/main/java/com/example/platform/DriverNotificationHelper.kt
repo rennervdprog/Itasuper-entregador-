@@ -7,7 +7,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -26,11 +25,17 @@ import kotlin.math.absoluteValue
 
 object DriverNotificationHelper {
     const val CHANNEL_ORDERS = "driver_orders"
-    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts_v4"
+    // 2.5.9: canal SILENCIOSO (sem som, sem vibração) — o aviso sonoro
+    // único passa a ser o ringtone do caminho de atenção (alertAttention),
+    // 1× por pedido em 60 s. Canal de notificação é imutável depois de
+    // criado, então o silêncio entra num canal novo e o v4 vira legado.
+    const val CHANNEL_ORDER_ALERTS = "driver_order_alerts_v5"
     // Canais antigos do alerta. Canal de notificação é imutável depois de
     // criado, então cada troca de som entra num canal novo e os antigos
     // são apagados: v1 = alarme do aparelho (Fase 2), v2 = primeiro som
-    // próprio do ItaSuper (2.5.6), v3 = v4 "estilo 99" (2.5.7).
+    // próprio do ItaSuper (2.5.6), v3 = v4 "estilo 99" (2.5.7),
+    // v4 = v4 suavizada (2.5.8).
+    private const val CHANNEL_ORDER_ALERTS_LEGACY_V4 = "driver_order_alerts_v4"
     private const val CHANNEL_ORDER_ALERTS_LEGACY = "driver_order_alerts_v3"
     private const val CHANNEL_ORDER_ALERTS_LEGACY_V2 = "driver_order_alerts_v2"
     private const val CHANNEL_ORDER_ALERTS_LEGACY_V1 = "driver_order_alerts"
@@ -52,10 +57,11 @@ object DriverNotificationHelper {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply { description = "Alertas de novos pedidos e atualizações de entrega" }
         )
-        // Canal DEDICADO do alerta de pedido novo (Fase 2): vibração
-        // própria e o som próprio do ItaSuper (2.5.6; v4 "estilo 99" na
-        // 2.5.7, versão suavizada na 2.5.8 — os canais antigos são
-        // apagados logo abaixo).
+        // Canal DEDICADO do alerta de pedido novo (Fase 2; silencioso
+        // desde a 2.5.9 — o som e a vibração do aviso único vêm do
+        // alertAttention, não do canal; os canais antigos são apagados
+        // logo abaixo).
+        runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY_V4) }
         runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY) }
         runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY_V2) }
         runCatching { manager.deleteNotificationChannel(CHANNEL_ORDER_ALERTS_LEGACY_V1) }
@@ -65,16 +71,11 @@ object DriverNotificationHelper {
                 "Alerta de novo pedido",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Som e vibração do aviso de nova entrega disponível"
-                setSound(
-                    newOrderSoundUri(context),
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                enableVibration(true)
-                vibrationPattern = ALERT_VIBRATION_PATTERN
+                description = "Aviso de nova entrega disponível (som e vibração pelo alerta em tela)"
+                // 2.5.9: sem som e sem vibração no canal — o aviso único
+                // é o alertAttention (ringtone + vibração), 1× por pedido.
+                setSound(null, null)
+                enableVibration(false)
             }
         )
         manager.createNotificationChannel(
@@ -99,12 +100,11 @@ object DriverNotificationHelper {
             .notify(ORDER_NOTIFICATION_ID, notification)
     }
 
-    // Guarda do som de pedido novo (correção da duplicação): UM único
-    // aviso sonoro por pedido numa janela de 60 s, não importa o caminho
-    // (push FCM, Realtime ou sobreposição). Quem reivindica primeiro toca;
-    // os demais caminhos do MESMO pedido são suprimidos. Sem isso, o FCM
-    // tocava o som do canal + o ringtone da sobreposição juntos, e o
-    // Realtime postava a mesma notificação de novo segundos depois.
+    // Guarda da POSTAGEM (correção da duplicação): UMA única notificação
+    // por pedido numa janela de 60 s, não importa o caminho (push FCM ou
+    // Realtime). Quem posta primeiro fica; o outro caminho é suprimido.
+    // Sem isso, o Realtime postava a mesma notificação de novo segundos
+    // depois do push.
     private const val NEW_ORDER_ALERT_WINDOW_MS = 60_000L
     private val newOrderAlertLock = Any()
     private var lastNewOrderAlertOrderId: String? = null
@@ -120,6 +120,30 @@ object DriverNotificationHelper {
             }
             lastNewOrderAlertOrderId = orderId
             lastNewOrderAlertAtMs = now
+            return true
+        }
+    }
+
+    // Guarda do SOM (2.5.9): UM único aviso sonoro por pedido numa janela
+    // de 60 s, não importa o caminho (notificação ou sobreposição).
+    // Separada da guarda de postagem: antes, a postagem reivindicava o
+    // aviso e a sobreposição abria muda — se o som do canal fosse
+    // suprimido (ex.: Não Perturbe), o pedido chegava em silêncio total.
+    // Agora o som é sempre o ringtone do alertAttention, reivindicado aqui.
+    private val newOrderSoundLock = Any()
+    private var lastNewOrderSoundOrderId: String? = null
+    private var lastNewOrderSoundAtMs: Long = 0L
+
+    private fun claimNewOrderSound(orderId: String): Boolean {
+        if (orderId.isBlank()) return true
+        val now = System.currentTimeMillis()
+        synchronized(newOrderSoundLock) {
+            val sameOrder = lastNewOrderSoundOrderId == orderId
+            if (sameOrder && now - lastNewOrderSoundAtMs < NEW_ORDER_ALERT_WINDOW_MS) {
+                return false
+            }
+            lastNewOrderSoundOrderId = orderId
+            lastNewOrderSoundAtMs = now
             return true
         }
     }
@@ -183,6 +207,10 @@ object DriverNotificationHelper {
 
         context.getSystemService(NotificationManager::class.java)
             .notify(ORDER_NOTIFICATION_ID + (orderId.hashCode().absoluteValue % 10_000), builder.build())
+        // 2.5.9: o canal é silencioso — o aviso sonoro único vem do
+        // alertAttention (a sobreposição chama o mesmo caminho e a guarda
+        // de som garante 1× por pedido, sem dobrar).
+        alertAttention(context, orderId)
     }
 
     fun showArrivalAtDestination(context: Context, orderId: String, shortCode: String, destination: String) {
@@ -233,19 +261,16 @@ object DriverNotificationHelper {
     private var activeRingtone: Ringtone? = null
 
     /**
-     * Chama a atenção na hora (Fase 2): vibração no padrão do alerta +
-     * som próprio do ItaSuper (2.5.6) por alguns segundos. Usado pela
-     * sobreposição em tela cheia, que não passa por canal de
-     * notificação — sem isso, o aviso era só visual.
+     * Chama a atenção na hora (Fase 2; dono único do som desde a 2.5.9):
+     * vibração no padrão do alerta + som próprio do ItaSuper (2.5.6) por
+     * alguns segundos. Chamado pela notificação de pedido novo e pela
+     * sobreposição em tela cheia; a guarda de som garante 1× por pedido.
      */
     fun alertAttention(context: Context, orderId: String? = null) {
-        // Sobreposição do MESMO pedido cuja notificação do canal já soou
-        // (o chamador do push posta a notificação antes de abrir a
-        // sobreposição): não tocar o ringtone nem vibrar de novo — o som
-        // do canal é o aviso único. Se ninguém reivindicou o pedido
-        // (ex.: notificações sem permissão), a sobreposição reivindica e
-        // toca como reserva.
-        if (!orderId.isNullOrBlank() && !claimNewOrderAlert(orderId)) return
+        // 2.5.9: o ringtone daqui É o aviso sonoro único (o canal é
+        // silencioso). A guarda de som garante 1× por pedido em 60 s,
+        // não importa se o chamado veio da notificação ou da sobreposição.
+        if (!orderId.isNullOrBlank() && !claimNewOrderSound(orderId)) return
         runCatching {
             val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
