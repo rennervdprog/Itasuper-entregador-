@@ -275,7 +275,7 @@ fun DriverPermissionsScreen(
                             .padding(top = 16.dp)
                             .clip(RoundedCornerShape(999.dp))
                             .background(ItaOrange)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                             .align(Alignment.CenterHorizontally)
                     ) {
                         Text(
@@ -310,7 +310,7 @@ fun DriverPermissionsScreen(
                             tint = ItaGreen,
                             modifier = Modifier.size(19.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = step.grantedLabel,
                             color = ItaGreen,

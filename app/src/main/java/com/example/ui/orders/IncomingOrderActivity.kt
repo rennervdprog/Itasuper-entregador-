@@ -353,7 +353,7 @@ private fun IncomingOrderContent(
             onClick = onDismiss,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
+                .height(56.dp),
             shape = RoundedCornerShape(18.dp)
         ) {
             Text(

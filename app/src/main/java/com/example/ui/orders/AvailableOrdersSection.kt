@@ -127,7 +127,7 @@ fun AvailableOrdersSection(
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Aceitar rota (${visibleOrders.size})",
                         style = MaterialTheme.typography.labelLarge,
@@ -370,7 +370,7 @@ fun AvailableOrderCard(
                     tint = ItaSlate600,
                     modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Itens: ${order.driverItemsSummary}",
                     style = MaterialTheme.typography.bodySmall,
@@ -403,7 +403,7 @@ fun AvailableOrderCard(
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isDisabled) "Finalize a rota atual" else "Aceitar",
                         style = MaterialTheme.typography.titleSmall,
@@ -486,7 +486,7 @@ private fun Pill(
     Box(
         modifier = Modifier
             .background(backgroundColor, RoundedCornerShape(24.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Text(
             text = text,

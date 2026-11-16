@@ -407,7 +407,7 @@ private fun NewSupportTicketDialog(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
                     .imePadding()
-                    .padding(20.dp)
+                    .padding(24.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -90,7 +90,7 @@ private fun MetricItem(
             color = valueColor
         )
         if (subtitle != null) {
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,

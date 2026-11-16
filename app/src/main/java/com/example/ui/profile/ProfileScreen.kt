@@ -178,8 +178,8 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Profile Header Card
             Card(
@@ -193,7 +193,7 @@ fun ProfileScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
@@ -225,7 +225,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .background(ItaGreenLight, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Verified,
@@ -244,7 +244,7 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = ItaDivider)
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     if (profile.memberSince.isNotBlank()) {
                         val memberSince = formatLongDatePtBr(profile.memberSince)
@@ -282,14 +282,14 @@ fun ProfileScreen(
                         label = "E-mail",
                         value = profile.email.ifBlank { "Não informado" }
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     ProfileInfoRow(
                         icon = Icons.Default.Phone,
                         label = "Telefone",
                         value = profile.phone.ifBlank { "Não informado" }
                     )
                     if (profile.vehicleType.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         ProfileInfoRow(
                             icon = Icons.Default.TwoWheeler,
                             label = "Veículo",
@@ -350,7 +350,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color(0xFFF8FAFC), RoundedCornerShape(8.dp))
-                                .padding(10.dp),
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -412,11 +412,11 @@ fun ProfileScreen(
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         NavPreferenceOption(
                             name = "Google Maps",
@@ -448,7 +448,7 @@ fun ProfileScreen(
                             tint = ItaOrange,
                             modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Entrada com biometria",
@@ -504,7 +504,7 @@ fun ProfileScreen(
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (IncomingOrderOverlay.isAllowed(context)) {
                             "Sobreposição autorizada neste aparelho."
@@ -588,7 +588,7 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -642,7 +642,7 @@ private fun PendingStoreInvitesCard(
                 val processingAction = processingInviteActions[invite.id]
                 val isProcessing = processingAction != null
                 val isAccepting = processingAction == true
-                if (index > 0) Spacer(modifier = Modifier.height(10.dp))
+                if (index > 0) Spacer(modifier = Modifier.height(12.dp))
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -664,7 +664,7 @@ private fun PendingStoreInvitesCard(
                         fontSize = 12.sp,
                         color = Color(0xFF7C2D12)
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -892,7 +892,7 @@ private fun DriverDirectoryPreferenceCard(
                 fontWeight = FontWeight.Bold,
                 color = ItaTextPrimary
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Pesquise e escolha um município válido antes de salvar.",
                 fontSize = 12.sp,
@@ -953,7 +953,7 @@ private fun DriverDirectoryPreferenceCard(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF9A3412),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                     citySuggestions.forEach { municipality ->
                         Text(
@@ -1029,7 +1029,7 @@ private fun DriverDirectoryPreferenceCard(
                 text = "A localização é usada apenas para sugerir sua cidade. Você confirma antes de salvar.",
                 fontSize = 12.sp,
                 color = Color(0xFF7C2D12),
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 8.dp)
             )
             if (locationMessage != null) {
                 Text(
@@ -1040,7 +1040,7 @@ private fun DriverDirectoryPreferenceCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "2. Escolha sua visibilidade",
                 fontSize = 14.sp,
@@ -1057,7 +1057,7 @@ private fun DriverDirectoryPreferenceCard(
                         isListed = !isListed
                         if (!isListed) hasContactConsent = false
                     }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -1067,14 +1067,14 @@ private fun DriverDirectoryPreferenceCard(
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (isListed) "Seu perfil pode ser encontrado por lojas da mesma cidade." else "Desligado: seu perfil não fica visível na base.",
                         fontSize = 12.sp,
                         color = Color(0xFF7C2D12)
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Switch(
                     checked = isListed,
                     onCheckedChange = { checked ->
@@ -1105,7 +1105,7 @@ private fun DriverDirectoryPreferenceCard(
                         .background(Color(0xFFFFD6B3), RoundedCornerShape(14.dp))
                         .border(1.dp, Color(0xFFF97316), RoundedCornerShape(14.dp))
                         .clickable(enabled = !isSaving) { hasContactConsent = !hasContactConsent }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     Checkbox(
@@ -1114,12 +1114,12 @@ private fun DriverDirectoryPreferenceCard(
                         enabled = !isSaving,
                         modifier = Modifier.testTag("checkbox_directory_consent")
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Autorizo a ItaSuper a mostrar meu nome, cidade, veículo e WhatsApp para lojistas da mesma cidade, exclusivamente para que possam entrar em contato direto sobre possível contratação.",
                         fontSize = 12.sp,
                         color = ItaTextPrimary,
-                        modifier = Modifier.padding(top = 10.dp)
+                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
             }
@@ -1131,7 +1131,7 @@ private fun DriverDirectoryPreferenceCard(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF9A3412)
             )
-            Spacer(modifier = Modifier.height(5.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "A ItaSuper não contrata, não paga e não intermedeia acordos. Contratação, pagamento, escala e seguro são definidos diretamente entre lojista e motoboy.",
                 fontSize = 12.sp,
@@ -1153,7 +1153,7 @@ private fun DriverDirectoryPreferenceCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = { onSave(city, isListed, hasContactConsent, selectedMunicipality != null) },
                 enabled = !isSaving,
@@ -1193,7 +1193,7 @@ private fun ProfileInfoRow(
             tint = ItaTextSecondary,
             modifier = Modifier.size(16.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(text = label, fontSize = 11.sp, color = ItaTextTertiary)
             Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ItaTextPrimary)

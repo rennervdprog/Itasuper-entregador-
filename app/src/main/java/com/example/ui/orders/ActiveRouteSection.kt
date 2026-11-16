@@ -146,7 +146,7 @@ fun ActiveRouteSection(
                     tint = ItaOrange,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Sua rota ativa (${orders.size})",
                     fontSize = 16.sp,
@@ -160,7 +160,7 @@ fun ActiveRouteSection(
                     onClick = onDispatchAll,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.testTag("btn_dispatch_all_ready")
                 ) {
                     Icon(
@@ -180,7 +180,7 @@ fun ActiveRouteSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Rota otimizada: total estimado + navegação da rota inteira.
         // Fluxo correto: primeiro "Sair para entrega". O botão Navegar
@@ -215,7 +215,7 @@ fun ActiveRouteSection(
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Navegar rota (${departedStops.size} paradas)",
                         fontSize = 13.sp,
@@ -228,7 +228,7 @@ fun ActiveRouteSection(
                         text = "A rota completa abre no Google Maps — o Waze não aceita várias paradas.",
                         fontSize = 11.sp,
                         color = ItaTextSecondary,
-                        modifier = Modifier.padding(top = 6.dp)
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             } else {
@@ -242,7 +242,7 @@ fun ActiveRouteSection(
         }
 
         // Active delivery cards
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             orders.forEachIndexed { index, order ->
                 ActiveDeliveryCard(
                     order = order,
@@ -739,7 +739,7 @@ fun ActiveDeliveryCard(
                             if (isReady) ItaStatusPendingBg else ItaStatusInTransitBg,
                             RoundedCornerShape(6.dp)
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = if (isReady) "PRONTO PARA SAIR" else "EM ENTREGA",
@@ -751,7 +751,7 @@ fun ActiveDeliveryCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Destination Neighborhood + Address
             Text(
@@ -760,7 +760,7 @@ fun ActiveDeliveryCard(
                 fontWeight = FontWeight.Bold,
                 color = ItaSlate900
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = order.fullAddress,
                 fontSize = 13.sp,
@@ -768,7 +768,7 @@ fun ActiveDeliveryCard(
             )
 
             if (order.routeLegKm != null) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Route,
@@ -786,7 +786,7 @@ fun ActiveDeliveryCard(
             }
 
             // Customer Name & Contact
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Cliente: ${order.customerName}",
                 fontSize = 12.sp,
@@ -808,7 +808,7 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onNavigate,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp)
@@ -827,7 +827,7 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onWhatsApp,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp)
@@ -846,7 +846,7 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onCallCustomer,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .height(40.dp)
                             .testTag("btn_call_delivery_${order.id}")
@@ -860,7 +860,7 @@ fun ActiveDeliveryCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Expandable Items and Payment Breakdown
@@ -879,7 +879,7 @@ fun ActiveDeliveryCard(
                         color = ItaSlate700,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = order.payment.driverInstruction,
                         fontSize = 11.sp,
@@ -900,16 +900,10 @@ fun ActiveDeliveryCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(ItaSlate50, RoundedCornerShape(10.dp))
-                        .padding(10.dp)
+                        .padding(12.dp)
                 ) {
-                    Text(
-                        text = order.payment.driverInstruction,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (order.payment.isPaidOnline) ItaGreenDark else ItaSlate700
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                    // Sem repetir a instrução de pagamento aqui: ela já
+                    // está na linha de resumo acima da caixa.
                     order.items.forEach { item ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),

@@ -155,43 +155,49 @@ fun OrdersScreen(
                 )
 
                 // Segmented Switch: Entregas vs Histórico
-                TabRow(
-                    selectedTabIndex = uiState.activeTabSegment,
-                    containerColor = ItaSurface,
-                    contentColor = ItaOrange,
-                    indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[uiState.activeTabSegment]),
-                            color = ItaOrange,
-                            height = 3.dp
-                        )
-                    },
-                    divider = { HorizontalDivider(color = ItaDivider) }
+                // Sombra sutil: a barra fixa se separa do conteúdo rolante.
+                Surface(
+                    shadowElevation = 2.dp,
+                    color = ItaSurface
                 ) {
-                    Tab(
-                        selected = uiState.activeTabSegment == 0,
-                        onClick = { viewModel.setTabSegment(0) },
-                        text = {
-                            Text(
-                                text = "Entregas",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (uiState.activeTabSegment == 0) FontWeight.Bold else FontWeight.Medium
+                    TabRow(
+                        selectedTabIndex = uiState.activeTabSegment,
+                        containerColor = ItaSurface,
+                        contentColor = ItaOrange,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(tabPositions[uiState.activeTabSegment]),
+                                color = ItaOrange,
+                                height = 3.dp
                             )
                         },
-                        modifier = Modifier.testTag("tab_segment_deliveries")
-                    )
-                    Tab(
-                        selected = uiState.activeTabSegment == 1,
-                        onClick = { viewModel.setTabSegment(1) },
-                        text = {
-                            Text(
-                                text = "Histórico",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (uiState.activeTabSegment == 1) FontWeight.Bold else FontWeight.Medium
-                            )
-                        },
-                        modifier = Modifier.testTag("tab_segment_history")
-                    )
+                        divider = { HorizontalDivider(color = ItaDivider) }
+                    ) {
+                        Tab(
+                            selected = uiState.activeTabSegment == 0,
+                            onClick = { viewModel.setTabSegment(0) },
+                            text = {
+                                Text(
+                                    text = "Entregas",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (uiState.activeTabSegment == 0) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            modifier = Modifier.testTag("tab_segment_deliveries")
+                        )
+                        Tab(
+                            selected = uiState.activeTabSegment == 1,
+                            onClick = { viewModel.setTabSegment(1) },
+                            text = {
+                                Text(
+                                    text = "Histórico",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (uiState.activeTabSegment == 1) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            modifier = Modifier.testTag("tab_segment_history")
+                        )
+                    }
                 }
 
                 if (uiState.activeTabSegment == 1) {
@@ -386,7 +392,7 @@ private fun TopHeader(
                     letterSpacing = 1.2.sp,
                     color = ItaSlate500
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Olá, $driverName",
                     style = MaterialTheme.typography.titleMedium,
@@ -702,7 +708,7 @@ private fun OnlineEmptyState(
                 tint = ItaOrange,
                 modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Atualizar pedidos",
                 style = MaterialTheme.typography.labelLarge,
@@ -731,7 +737,7 @@ private fun HealthPill(
             tint = contentColor,
             modifier = Modifier.size(16.dp)
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,

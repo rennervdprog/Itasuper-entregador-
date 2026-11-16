@@ -124,7 +124,7 @@ private fun OfflineHero(
                     tint = ItaSlate600,
                     modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Offline",
                     style = MaterialTheme.typography.labelMedium,
@@ -213,7 +213,7 @@ private fun OnlineHero(
                         style = MaterialTheme.typography.titleSmall,
                         color = ItaGreenDark
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (visibleStoresCount > 0) {
                             "Recebendo pedidos de $visibleStoresCount " +
@@ -274,7 +274,7 @@ private fun RouteActiveHero(
                     style = MaterialTheme.typography.titleSmall,
                     color = ItaTextPrimary
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Disponibilidade para novos pedidos pausada até concluir a rota",
                     style = MaterialTheme.typography.bodySmall,
