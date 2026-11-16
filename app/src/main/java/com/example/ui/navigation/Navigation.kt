@@ -5,6 +5,7 @@ sealed class Screen(val route: String) {
     object Login : Screen("login?biometric={biometric}") {
         fun createRoute(biometric: Boolean = false) = "login?biometric=$biometric"
     }
+    object Registration : Screen("registration")
     object BiometricEnrollment : Screen("biometric_enrollment/{userId}/{hasAcceptedLink}") {
         fun createRoute(userId: String, hasAcceptedLink: Boolean) =
             "biometric_enrollment/$userId/$hasAcceptedLink"

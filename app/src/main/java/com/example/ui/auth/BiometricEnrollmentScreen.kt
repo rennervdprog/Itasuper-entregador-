@@ -20,6 +20,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,9 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.example.platform.DriverBiometricAccess
 import com.example.platform.DriverBiometricAuthenticator
@@ -93,31 +93,31 @@ fun BiometricEnrollmentScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .size(84.dp)
-                    .background(ItaOrange, RoundedCornerShape(22.dp)),
+                    .size(104.dp)
+                    .background(ItaOrange, RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Fingerprint,
+                    imageVector = Icons.Filled.Fingerprint,
                     contentDescription = "Impressão digital",
                     tint = Color.White,
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(56.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Que tal entrar mais rápido?",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = ItaSlate900
+                style = MaterialTheme.typography.headlineMedium,
+                color = ItaSlate900,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Ative a biometria e entre no ItaSuper Entregador com um toque, sem digitar sua senha.",
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = ItaSlate500,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
@@ -125,25 +125,24 @@ fun BiometricEnrollmentScreen(
             Card(
                 colors = CardDefaults.cardColors(containerColor = ItaSurface),
                 border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Security,
+                        imageVector = Icons.Filled.Security,
                         contentDescription = null,
                         tint = ItaOrange,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.size(10.dp))
+                    Spacer(modifier = Modifier.size(12.dp))
                     Text(
                         text = "A sua senha não é salva. A biometria apenas protege o acesso à sessão deste aparelho.",
                         color = ItaSlate500,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
@@ -153,42 +152,59 @@ fun BiometricEnrollmentScreen(
                 Text(
                     text = errorMessage.orEmpty(),
                     color = ItaStatusDanger,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.testTag("text_biometric_enrollment_error")
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = ::enableBiometrics,
                 colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(58.dp)
                     .testTag("btn_enable_biometric")
             ) {
                 Icon(
-                    imageVector = Icons.Default.Fingerprint,
+                    imageVector = Icons.Filled.Fingerprint,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Ativar biometria", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Ativar biometria",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
                 onClick = onSkip,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(52.dp)
                     .testTag("btn_skip_biometric")
             ) {
-                Text("Agora não", color = ItaSlate500, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "Agora não",
+                    color = ItaSlate500,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Você pode ativar depois, no seu perfil.",
+                color = ItaSlate500,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.example.ui.orders
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -23,16 +22,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PowerOff
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -68,8 +65,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.data.model.DriverLinkStatus
-import com.example.data.model.NavigationPreference
 import com.example.data.model.OrderDeliveryStatus
+import com.example.data.model.StoreDriverLink
 import com.example.ui.components.ConnectivityBanner
 import com.example.ui.components.MetricsRow
 import com.example.ui.components.OnlineHeroToggle
@@ -79,18 +76,20 @@ import com.example.ui.history.HistoryViewModel
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaDivider
-import com.example.ui.theme.ItaGreen
 import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaGreenLight
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaOrangeLight
+import com.example.ui.theme.ItaSlate100
 import com.example.ui.theme.ItaSlate400
 import com.example.ui.theme.ItaSlate500
+import com.example.ui.theme.ItaSlate600
 import com.example.ui.theme.ItaSlate900
+import com.example.ui.theme.ItaStatusPending
+import com.example.ui.theme.ItaStatusPendingBg
 import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
-import com.example.ui.theme.ItaTextTertiary
 
 @Composable
 fun OrdersScreen(
@@ -175,8 +174,8 @@ fun OrdersScreen(
                         text = {
                             Text(
                                 text = "Entregas",
-                                fontWeight = if (uiState.activeTabSegment == 0) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (uiState.activeTabSegment == 0) FontWeight.Bold else FontWeight.Medium
                             )
                         },
                         modifier = Modifier.testTag("tab_segment_deliveries")
@@ -187,8 +186,8 @@ fun OrdersScreen(
                         text = {
                             Text(
                                 text = "Histórico",
-                                fontWeight = if (uiState.activeTabSegment == 1) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (uiState.activeTabSegment == 1) FontWeight.Bold else FontWeight.Medium
                             )
                         },
                         modifier = Modifier.testTag("tab_segment_history")
@@ -205,15 +204,16 @@ fun OrdersScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(scrollState)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // 0. Aviso de versão nova (Fase 4.2)
-                        if (updateInfo != null) {
+                        val currentUpdateInfo = updateInfo
+                        if (currentUpdateInfo != null) {
                             UpdateAvailableBanner(
-                                info = updateInfo!!,
+                                info = currentUpdateInfo,
                                 onDownload = {
-                                    com.example.platform.AppUpdateChecker.openDownload(context, updateInfo!!)
+                                    com.example.platform.AppUpdateChecker.openDownload(context, currentUpdateInfo)
                                 },
                                 onDismiss = {
                                     com.example.platform.AppUpdateChecker.dismiss(context)
@@ -313,11 +313,17 @@ fun OrdersScreen(
                                 )
                             } else if (activeRouteOrders.isEmpty()) {
                                 // Online and empty
-                                OnlineEmptyState(onRefresh = { viewModel.refreshOrders() })
+                                OnlineEmptyState(
+                                    onRefresh = { viewModel.refreshOrders() },
+                                    pendingSyncCount = offlineConfirmations.size,
+                                    storesCount = acceptedStores.size
+                                )
                             }
                         } else if (activeRouteOrders.isEmpty()) {
-                            // Offline empty state
-                            OfflineEmptyState(onGoOnline = { viewModel.toggleAvailability(true) })
+                            // Offline: o herói acima já carrega o botão
+                            // gigante; aqui ficam as lojas vinculadas e o
+                            // compromisso do rastreio.
+                            OfflineEmptyState(stores = acceptedStores)
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -364,28 +370,26 @@ private fun TopHeader(
 
     Surface(
         color = ItaSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaDivider)
+        border = BorderStroke(1.dp, ItaDivider)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     text = "ItaSuper Entregador",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 1.2.sp,
                     color = ItaSlate500
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Olá, $driverName",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
                     color = ItaSlate900
                 )
             }
@@ -398,14 +402,14 @@ private fun TopHeader(
                         .testTag("btn_refresh_orders")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh,
+                        imageVector = Icons.Filled.Refresh,
                         contentDescription = "Atualizar pedidos",
                         tint = ItaSlate400,
                         modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Box(
                     modifier = Modifier
@@ -417,8 +421,7 @@ private fun TopHeader(
                     Text(
                         text = initials,
                         color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -428,7 +431,7 @@ private fun TopHeader(
 
 @Composable
 private fun StoresChipsFilter(
-    stores: List<com.example.data.model.StoreDriverLink>,
+    stores: List<StoreDriverLink>,
     availableOrders: List<com.example.data.model.DeliveryOrder>,
     selectedStoreId: String?,
     onSelectStore: (String?) -> Unit
@@ -451,7 +454,7 @@ private fun StoresChipsFilter(
                 label = {
                     Text(
                         text = "Todas (${availableOrders.size})",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (selectedStoreId == null) FontWeight.Bold else FontWeight.Normal
                     )
                 },
@@ -480,7 +483,7 @@ private fun StoresChipsFilter(
                 label = {
                     Text(
                         text = "${link.store.tradeName.replace("ItaSuper - ", "")} ($storeOrdersCount)",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
@@ -500,117 +503,240 @@ private fun StoresChipsFilter(
     }
 }
 
+/**
+ * Offline, sem rota: as lojas vinculadas + o compromisso do rastreio. O
+ * botão de ficar online vive no herói acima — sem CTA duplicado.
+ */
 @Composable
 private fun OfflineEmptyState(
-    onGoOnline: () -> Unit
+    stores: List<StoreDriverLink>
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(Color(0xFFE2E8F0), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.PowerOff,
-                contentDescription = null,
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(14.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Você está offline",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
+            text = "Suas lojas",
+            style = MaterialTheme.typography.titleMedium,
             color = ItaTextPrimary
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        if (stores.isEmpty()) {
+            Text(
+                text = "Nenhuma loja vinculada ainda.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ItaTextSecondary
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                stores.forEach { link ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                        border = BorderStroke(1.dp, ItaBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Storefront,
+                                contentDescription = null,
+                                tint = ItaOrange,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = link.store.tradeName.replace("ItaSuper - ", ""),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = ItaTextPrimary
+                                )
+                                Text(
+                                    text = if (link.store.neighborhood.isNotBlank()) {
+                                        "${link.store.neighborhood} · vinculada"
+                                    } else {
+                                        "vinculada"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = ItaTextSecondary
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Vinculada",
+                                tint = ItaGreenDark,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Fique online para começar a receber pedidos das suas lojas vinculadas.",
-            fontSize = 13.sp,
+            text = "O rastreio só liga quando você aceita e sai para uma entrega. " +
+                "Offline, sua posição não é compartilhada.",
+            style = MaterialTheme.typography.bodySmall,
+            color = ItaTextSecondary
+        )
+    }
+}
+
+/**
+ * Online vazio: "De olho na pista" + selos de saúde com o estado REAL já
+ * consumido pela tela (fila de sincronização e lojas vinculadas). Não há
+ * selo de GPS nem de avisos: nenhum estado de GPS/permissão chega a esta
+ * tela pelo ViewModel, e um selo "GPS ok" sem medição seria a mentira que
+ * a auditoria N-P1-3 denunciou.
+ */
+@Composable
+private fun OnlineEmptyState(
+    onRefresh: () -> Unit,
+    pendingSyncCount: Int,
+    storesCount: Int
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "De olho na pista.",
+            style = MaterialTheme.typography.headlineMedium,
+            color = ItaTextPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Quando um pedido cair, ele toma a tela com som — você decide em segundos.",
+            style = MaterialTheme.typography.bodyMedium,
             color = ItaTextSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onGoOnline,
-            colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
-            modifier = Modifier
-                .height(48.dp)
-                .testTag("btn_go_online_empty")
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = ItaSurface),
+            border = BorderStroke(1.dp, ItaBorder)
         ) {
-            Text(
-                text = "Ficar Online Agora",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                maxLines = 1
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(ItaOrangeLight, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ItaOrange,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Nenhum pedido agora",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ItaTextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Suas lojas ainda não liberaram nada. O app avisa na hora que chegar.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ItaTextSecondary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (pendingSyncCount > 0) {
+                        HealthPill(
+                            icon = Icons.Filled.Sync,
+                            text = "Sincronização pendente ($pendingSyncCount)",
+                            backgroundColor = ItaStatusPendingBg,
+                            contentColor = ItaStatusPending
+                        )
+                    } else {
+                        HealthPill(
+                            icon = Icons.Filled.CloudDone,
+                            text = "Sincronização em dia",
+                            backgroundColor = ItaGreenLight,
+                            contentColor = ItaGreenDark
+                        )
+                    }
+                    if (storesCount > 0) {
+                        HealthPill(
+                            icon = Icons.Filled.Storefront,
+                            text = if (storesCount == 1) "1 loja vinculada" else "$storesCount lojas vinculadas",
+                            backgroundColor = ItaSlate100,
+                            contentColor = ItaSlate600
+                        )
+                    } else {
+                        HealthPill(
+                            icon = Icons.Filled.Storefront,
+                            text = "Nenhuma loja vinculada",
+                            backgroundColor = ItaStatusPendingBg,
+                            contentColor = ItaStatusPending
+                        )
+                    }
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun OnlineEmptyState(
-    onRefresh: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(ItaGreenLight, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.HourglassEmpty,
-                contentDescription = null,
-                tint = ItaGreenDark,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(14.dp))
-        Text(
-            text = "Aguardando novos pedidos",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = ItaTextPrimary
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Quando uma das suas lojas vinculadas liberar um pedido, ele aparece aqui automaticamente.",
-            fontSize = 13.sp,
-            color = ItaTextSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
         Spacer(modifier = Modifier.height(16.dp))
         TextButton(
             onClick = onRefresh,
             modifier = Modifier.testTag("btn_refresh_empty_orders")
         ) {
             Icon(
-                imageVector = Icons.Default.Refresh,
+                imageVector = Icons.Filled.Refresh,
                 contentDescription = null,
                 tint = ItaOrange,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Atualizar pedidos", color = ItaOrange, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "Atualizar pedidos",
+                style = MaterialTheme.typography.labelLarge,
+                color = ItaOrange
+            )
         }
+    }
+}
+
+@Composable
+private fun HealthPill(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    backgroundColor: Color,
+    contentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .background(backgroundColor, RoundedCornerShape(24.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor
+        )
     }
 }
 
@@ -623,40 +749,38 @@ private fun UpdateAvailableBanner(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, ItaOrange)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Filled.SystemUpdate,
                 contentDescription = null,
                 tint = ItaOrange,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Nova versão disponível: ${info.version}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = ItaSlate900
                 )
                 Text(
                     text = "Atualize para receber as melhorias e correções.",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = ItaSlate500
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Baixar agora",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge,
                     color = ItaOrange,
                     modifier = Modifier.clickable { onDownload() }
                 )

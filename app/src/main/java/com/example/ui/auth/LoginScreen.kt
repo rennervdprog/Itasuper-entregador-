@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -37,6 +36,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,29 +53,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.example.data.model.DriverProfile
 import com.example.platform.DriverBiometricAuthenticator
+import com.example.ui.components.DriverHelmetMark
 import com.example.ui.components.itaOutlinedFieldColors
 import com.example.ui.theme.ItaBackground
-import com.example.ui.theme.ItaGreen
 import com.example.ui.theme.ItaOrange
-import com.example.ui.theme.ItaOrangeLight
-import com.example.ui.theme.ItaSlate400
+import com.example.ui.theme.ItaOrangeDark
 import com.example.ui.theme.ItaSlate500
-import com.example.ui.theme.ItaSlate600
 import com.example.ui.theme.ItaSlate700
-import com.example.ui.theme.ItaSlate900
+import com.example.ui.theme.ItaStatusCompleted
 import com.example.ui.theme.ItaStatusDanger
 import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
@@ -87,24 +82,15 @@ fun LoginScreen(
     onLoginSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit,
     biometricAvailable: Boolean = false,
     onBiometricSuccess: (profile: DriverProfile, hasAcceptedLink: Boolean) -> Unit = { _, _ -> },
+    onNavigateToRegistration: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showRegistration by remember { mutableStateOf(false) }
-    if (showRegistration) {
-        MotoboyRegistrationScreen(
-            viewModel = viewModel,
-            onRegistrationSuccess = onLoginSuccess,
-            onBackToLogin = { showRegistration = false },
-            modifier = modifier
-        )
-        return
-    }
-
     val uiState by viewModel.uiState.collectAsState()
     val activity = LocalContext.current as? FragmentActivity
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(true) }
     var biometricError by remember { mutableStateOf<String?>(null) }
+    var showPasswordReset by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     fun requestBiometricLogin() {
@@ -124,7 +110,7 @@ fun LoginScreen(
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color.White
+        color = ItaBackground
     ) {
         Column(
             modifier = Modifier
@@ -133,78 +119,56 @@ fun LoginScreen(
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 28.dp)
-                .padding(top = 40.dp, bottom = 20.dp),
-            horizontalAlignment = Alignment.Start
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Badge "PARA ENTREGADORES"
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(ItaOrangeLight)
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(ItaGreen)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "PARA ENTREGADORES",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ItaOrange,
-                    letterSpacing = 0.3.sp
-                )
-            }
+            // A arte do capacete é uma máscara branca: sem o tint laranja
+            // ela some no fundo claro.
+            DriverHelmetMark(
+                tint = ItaOrange,
+                contentDescription = "ItaSuper Entregador",
+                modifier = Modifier.size(96.dp)
+            )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Título
             Text(
-                text = buildAnnotatedString {
-                    append("Bem-vindo de\nvolta")
-                    withStyle(SpanStyle(color = ItaOrange)) { append(".") }
-                },
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = ItaSlate900,
-                lineHeight = 36.sp,
-                letterSpacing = (-1).sp
+                text = "PARA ENTREGADORES DE LOJA",
+                style = MaterialTheme.typography.labelSmall,
+                color = ItaOrangeDark
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Acesse para gerenciar suas entregas e acompanhar seus ganhos em tempo real.",
-                fontSize = 14.sp,
-                color = ItaSlate500,
-                lineHeight = 21.sp
+                text = "Suas entregas,\ndireto ao ponto.",
+                style = MaterialTheme.typography.headlineMedium,
+                color = ItaTextPrimary,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Label + campo E-mail
             Text(
-                text = "E-mail",
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = ItaSlate700,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = "Receba os pedidos das suas lojas, rode a rota e confirme com o código do cliente. Sem taxa, sem corrida por ponto.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ItaTextSecondary,
+                textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Campo E-mail
             OutlinedTextField(
                 value = uiState.email,
                 onValueChange = { viewModel.onEmailChange(it) },
-                placeholder = { Text("voce@email.com", color = ItaSlate400) },
+                placeholder = { Text("Seu e-mail") },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Email,
+                        imageVector = Icons.Filled.Email,
                         contentDescription = null,
-                        tint = ItaSlate400,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 },
                 singleLine = true,
@@ -213,32 +177,25 @@ fun LoginScreen(
                     imeAction = ImeAction.Next
                 ),
                 colors = itaOutlinedFieldColors(),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(56.dp)
                     .testTag("input_email")
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Label + campo Senha
-            Text(
-                text = "Senha",
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = ItaSlate700,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // Campo Senha
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = { viewModel.onPasswordChange(it) },
-                placeholder = { Text("••••••••", color = ItaSlate400) },
+                placeholder = { Text("Sua senha") },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Lock,
+                        imageVector = Icons.Filled.Lock,
                         contentDescription = null,
-                        tint = ItaSlate400,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 },
                 trailingIcon = {
@@ -247,10 +204,9 @@ fun LoginScreen(
                         modifier = Modifier.testTag("btn_toggle_password")
                     ) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                             contentDescription = if (passwordVisible) "Ocultar senha" else "Mostrar senha",
-                            tint = ItaSlate400,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
@@ -264,9 +220,10 @@ fun LoginScreen(
                     onDone = { viewModel.login(onLoginSuccess) }
                 ),
                 colors = itaOutlinedFieldColors(),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(56.dp)
                     .testTag("input_password")
             )
 
@@ -275,10 +232,87 @@ fun LoginScreen(
                 Text(
                     text = uiState.errorMessage ?: "",
                     color = ItaStatusDanger,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                     modifier = Modifier.testTag("text_login_error")
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botão Entrar
+            Button(
+                onClick = { viewModel.login(onLoginSuccess) },
+                enabled = !uiState.isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ItaOrange,
+                    disabledContainerColor = ItaOrange.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .testTag("btn_login")
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Entrar",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Só aparece quando a biometria está de fato habilitada neste
+            // aparelho (a Splash informa o valor real; antes era sempre
+            // false e o botão nunca renderizava).
+            if (biometricAvailable) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(ItaSurface)
+                        .border(1.dp, ItaSlate500.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                        .clickable(enabled = !uiState.isLoading) { requestBiometricLogin() }
+                        .testTag("btn_biometric_login"),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Fingerprint,
+                        contentDescription = null,
+                        tint = ItaOrange,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Entrar com digital",
+                        color = ItaSlate700,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+                if (biometricError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = biometricError.orEmpty(),
+                        color = ItaStatusDanger,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        modifier = Modifier.testTag("text_biometric_error")
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -300,14 +334,14 @@ fun LoginScreen(
                             .background(if (rememberMe) ItaOrange else Color.Transparent)
                             .border(
                                 width = 1.5.dp,
-                                color = if (rememberMe) ItaOrange else ItaSlate400,
+                                color = if (rememberMe) ItaOrange else ItaSlate500,
                                 shape = RoundedCornerShape(6.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (rememberMe) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = Icons.Filled.Check,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(12.dp)
@@ -317,106 +351,21 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Lembrar de mim",
-                        fontSize = 13.5.sp,
-                        color = ItaSlate600,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = ItaTextSecondary
                     )
                 }
                 Text(
                     text = "Esqueci a senha",
-                    fontSize = 13.5.sp,
-                    color = ItaOrange,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clickable { /* TODO: fluxo de recuperação */ }
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = ItaOrangeDark,
+                    modifier = Modifier
+                        .clickable { showPasswordReset = true }
+                        .testTag("btn_forgot_password")
                 )
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // Botão Entrar (escuro com seta laranja)
-            Button(
-                onClick = { viewModel.login(onLoginSuccess) },
-                enabled = !uiState.isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ItaSlate900,
-                    disabledContainerColor = ItaSlate900.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("btn_login")
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                } else {
-                    Text(
-                        text = "Entrar",
-                        fontSize = 15.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(ItaOrange),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-            }
-
-            if (biometricAvailable) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .border(1.dp, ItaSlate400.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
-                        .clickable(enabled = !uiState.isLoading) { requestBiometricLogin() }
-                        .padding(vertical = 16.dp)
-                        .testTag("btn_biometric_login"),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fingerprint,
-                        contentDescription = null,
-                        tint = ItaOrange,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Entrar com digital",
-                        color = ItaSlate700,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                if (biometricError != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = biometricError.orEmpty(),
-                        color = ItaStatusDanger,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.testTag("text_biometric_error")
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -424,15 +373,14 @@ fun LoginScreen(
             ) {
                 Text(
                     text = "Ainda não tem conta? ",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = ItaSlate500
                 )
                 Text(
                     text = "Criar conta",
-                    fontSize = 14.sp,
-                    color = ItaOrange,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable(enabled = !uiState.isLoading) { showRegistration = true }
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = ItaOrangeDark,
+                    modifier = Modifier.clickable(enabled = !uiState.isLoading) { onNavigateToRegistration() }
                 )
             }
 
@@ -441,15 +389,12 @@ fun LoginScreen(
             // Ajuda no rodapé
             TextButton(
                 onClick = { viewModel.setHelpDialogOpen(true) },
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .testTag("btn_need_help")
+                modifier = Modifier.testTag("btn_need_help")
             ) {
                 Text(
                     text = "Precisa de ajuda? Fale conosco",
-                    color = ItaSlate400,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
+                    color = ItaSlate500,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
                 )
             }
         }
@@ -461,7 +406,7 @@ fun LoginScreen(
             title = {
                 Text(
                     text = "Como funciona o acesso?",
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
                     color = ItaTextPrimary
                 )
             },
@@ -472,9 +417,8 @@ fun LoginScreen(
                             "1. Crie sua conta de entregador com seus dados.\n" +
                             "2. Entre com o mesmo e-mail e sua senha.\n" +
                             "3. Aceite o convite de uma loja parceira para começar a receber pedidos.",
-                    fontSize = 14.sp,
-                    color = ItaTextSecondary,
-                    lineHeight = 20.sp
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ItaTextSecondary
                 )
             },
             confirmButton = {
@@ -489,4 +433,132 @@ fun LoginScreen(
             shape = RoundedCornerShape(16.dp)
         )
     }
+
+    if (showPasswordReset) {
+        PasswordResetDialog(
+            viewModel = viewModel,
+            initialEmail = uiState.email,
+            onDismiss = { showPasswordReset = false }
+        )
+    }
+}
+
+/**
+ * Recuperação de senha real via GoTrue: envia o e-mail com o link para criar
+ * uma nova senha e mostra o resultado no próprio diálogo.
+ */
+@Composable
+private fun PasswordResetDialog(
+    viewModel: AuthViewModel,
+    initialEmail: String,
+    onDismiss: () -> Unit
+) {
+    var email by remember { mutableStateOf(initialEmail) }
+    var isSending by remember { mutableStateOf(false) }
+    var feedback by remember { mutableStateOf<String?>(null) }
+    var feedbackSuccess by remember { mutableStateOf(false) }
+
+    fun sendReset() {
+        if (isSending) return
+        isSending = true
+        feedback = null
+        feedbackSuccess = false
+        viewModel.requestPasswordReset(email) { success, message ->
+            isSending = false
+            feedbackSuccess = success
+            feedback = message
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSending) onDismiss() },
+        title = {
+            Text(
+                text = "Recuperar senha",
+                style = MaterialTheme.typography.titleLarge,
+                color = ItaTextPrimary
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Informe o e-mail da sua conta. Vamos enviar um link para criar uma nova senha.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ItaTextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    placeholder = { Text("Seu e-mail") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Email,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { sendReset() }),
+                    colors = itaOutlinedFieldColors(),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("input_reset_email")
+                )
+                if (feedback != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = feedback.orEmpty(),
+                        color = if (feedbackSuccess) ItaStatusCompleted else ItaStatusDanger,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        modifier = Modifier.testTag("text_reset_feedback")
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (feedbackSuccess) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = ItaOrange)
+                ) {
+                    Text("Fechar", color = Color.White)
+                }
+            } else {
+                Button(
+                    onClick = { sendReset() },
+                    enabled = !isSending,
+                    colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                    modifier = Modifier.testTag("btn_send_reset")
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text("Enviar e-mail", color = Color.White)
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            if (!feedbackSuccess) {
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isSending,
+                    modifier = Modifier.testTag("btn_cancel_reset")
+                ) {
+                    Text("Cancelar", color = ItaSlate500)
+                }
+            }
+        },
+        containerColor = ItaSurface,
+        shape = RoundedCornerShape(16.dp)
+    )
 }

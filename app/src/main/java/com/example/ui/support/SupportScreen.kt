@@ -1,43 +1,43 @@
 package com.example.ui.support
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HeadsetMic
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.QuestionAnswer
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
@@ -48,16 +48,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.model.SupportTicket
 import com.example.ui.components.itaOutlinedFieldColors
@@ -68,7 +66,6 @@ import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaGreenLight
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaOrangeLight
-import com.example.ui.theme.ItaStatusDanger
 import com.example.ui.theme.ItaStatusPending
 import com.example.ui.theme.ItaStatusPendingBg
 import com.example.ui.theme.ItaSurface
@@ -103,8 +100,8 @@ fun SupportScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Header
                 item {
@@ -116,13 +113,12 @@ fun SupportScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Suporte ao Entregador",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge,
                                 color = ItaTextPrimary
                             )
                             Text(
                                 text = "Canal direto para dúvidas e ocorrências de loja",
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = ItaTextSecondary
                             )
                         }
@@ -132,23 +128,22 @@ fun SupportScreen(
                         Button(
                             onClick = { viewModel.openNewTicketDialog() },
                             colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
                             modifier = Modifier
                                 .height(48.dp)
                                 .testTag("btn_new_support_ticket")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Filled.Add,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Novo Chamado",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelLarge,
                                 color = Color.White,
                                 maxLines = 1
                             )
@@ -160,12 +155,12 @@ fun SupportScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = ItaSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+                        border = BorderStroke(1.dp, ItaBorder)
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -175,7 +170,7 @@ fun SupportScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.HeadsetMic,
+                                    imageVector = Icons.Filled.HeadsetMic,
                                     contentDescription = null,
                                     tint = ItaOrange,
                                     modifier = Modifier.size(22.dp)
@@ -185,13 +180,12 @@ fun SupportScreen(
                             Column {
                                 Text(
                                     text = "Atendimento ao motoboy de loja",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
                                     color = ItaTextPrimary
                                 )
                                 Text(
                                     text = "Atendimento: todos os dias, das 7h às 22h",
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = ItaTextSecondary
                                 )
                             }
@@ -202,15 +196,74 @@ fun SupportScreen(
                 item {
                     Text(
                         text = "Seus chamados (${tickets.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
                         color = ItaTextPrimary,
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
 
-                items(tickets, key = { it.id }) { ticket ->
-                    SupportTicketCard(ticket = ticket)
+                if (tickets.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                            border = BorderStroke(1.dp, ItaBorder)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .background(ItaOrangeLight, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.MarkEmailRead,
+                                        contentDescription = null,
+                                        tint = ItaOrange,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Nenhum chamado ainda",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = ItaTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Quando você abrir um chamado, ele aparece aqui.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = ItaTextSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.openNewTicketDialog() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text(
+                                        text = "Abrir um chamado",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(tickets, key = { it.id }) { ticket ->
+                        SupportTicketCard(ticket = ticket)
+                    }
                 }
 
                 item {
@@ -247,15 +300,20 @@ fun SupportScreen(
 private fun SupportTicketCard(
     ticket: SupportTicket
 ) {
+    // Sem bloco de resposta: SupportTicket não tem campo de resposta e o
+    // select de support_tickets não traz coluna de resposta — mostrar a
+    // resposta do chamado "Respondido" é trabalho futuro de backend + UI.
+    // Nada de texto inventado aqui: só a pílula de status, com os tokens
+    // do tema (pendente = laranja suave, nunca âmbar).
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_support_ticket_${ticket.id}"),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ItaSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+        border = BorderStroke(1.dp, ItaBorder)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -263,10 +321,13 @@ private fun SupportTicketCard(
             ) {
                 Text(
                     text = ticket.category,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = ItaOrange
+                    color = ItaOrange,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Box(
                     modifier = Modifier
@@ -274,23 +335,21 @@ private fun SupportTicketCard(
                             if (ticket.status == "Respondido") ItaGreenLight else ItaStatusPendingBg,
                             RoundedCornerShape(6.dp)
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = ticket.status,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
                         color = if (ticket.status == "Respondido") ItaGreenDark else ItaStatusPending
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = ticket.subject,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
                 color = ItaTextPrimary
             )
 
@@ -298,24 +357,23 @@ private fun SupportTicketCard(
 
             Text(
                 text = ticket.description,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = ItaTextSecondary
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = ItaDivider)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Criado em ${ticket.createdAt}",
-                fontSize = 11.sp,
+                text = "Criado em ${formatTicketDateTime(ticket.createdAt)}",
+                style = MaterialTheme.typography.labelSmall,
                 color = ItaTextTertiary
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewSupportTicketDialog(
     subject: String,
@@ -335,18 +393,22 @@ private fun NewSupportTicketDialog(
         "Cancelamento ou recusa de pedido",
         "Outros assuntos"
     )
-    var expanded by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(20.dp),
             color = ItaSurface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder),
+            border = BorderStroke(1.dp, ItaBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("dialog_new_support_ticket")
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(20.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,63 +416,46 @@ private fun NewSupportTicketDialog(
                 ) {
                     Text(
                         text = "Novo chamado",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
                         color = ItaTextPrimary
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar", tint = ItaTextSecondary)
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Fechar",
+                            tint = ItaTextSecondary
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Category selector
+                // Category selector: as 5 categorias reais como chips
+                // selecionáveis, em vez do dropdown sem scroll.
                 Text(
                     text = "Categoria",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = ItaTextSecondary
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        colors = itaOutlinedFieldColors(),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
+                Spacer(modifier = Modifier.height(8.dp))
+                categories.forEachIndexed { index, cat ->
+                    SupportCategoryChip(
+                        label = cat,
+                        selected = category == cat,
+                        index = index,
+                        onClick = { onCategoryChange(cat) }
                     )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    onCategoryChange(cat)
-                                    expanded = false
-                                }
-                            )
-                        }
+                    if (index < categories.lastIndex) {
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Subject
                 Text(
                     text = "Assunto",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = ItaTextSecondary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -419,7 +464,7 @@ private fun NewSupportTicketDialog(
                     onValueChange = onSubjectChange,
                     placeholder = { Text("Ex: Dúvida no pedido #4920") },
                     colors = itaOutlinedFieldColors(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -428,8 +473,7 @@ private fun NewSupportTicketDialog(
                 // Description
                 Text(
                     text = "Descrição detalhada",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = ItaTextSecondary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -440,20 +484,22 @@ private fun NewSupportTicketDialog(
                     minLines = 3,
                     maxLines = 5,
                     colors = itaOutlinedFieldColors(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
                     ) {
                         Text("Cancelar", color = ItaTextSecondary)
                     }
@@ -462,17 +508,120 @@ private fun NewSupportTicketDialog(
                         onClick = onSubmit,
                         enabled = !isLoading,
                         colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
                         } else {
-                            Text("Enviar", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(
+                                text = "Enviar",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SupportCategoryChip(
+    label: String,
+    selected: Boolean,
+    index: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = if (selected) ItaOrangeLight else ItaSurface,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) ItaOrange else ItaBorder,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .testTag("chip_support_category_$index"),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) ItaOrange else ItaTextPrimary,
+            modifier = Modifier.weight(1f)
+        )
+        if (selected) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = ItaOrange,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Data do chamado no padrão relativo do Histórico: "Hoje, 15:30",
+ * "Ontem, 18:20" ou "29/10, 13:45" (com ano reduzido em outro ano).
+ * O repositório já entrega "dd/MM/yyyy HH:mm"; aceita também o ISO cru
+ * como fallback. Sem java.time (minSdk 24): SimpleDateFormat + Calendar,
+ * e qualquer falha devolve o valor original em vez de esconder a data.
+ */
+private fun formatTicketDateTime(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isBlank()) return raw
+    if (trimmed.startsWith("Hoje") || trimmed.startsWith("Ontem")) return trimmed
+    return try {
+        val parsed = try {
+            java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("pt", "BR"))
+                .apply { isLenient = false }
+                .parse(trimmed)
+        } catch (_: Throwable) {
+            null
+        } ?: try {
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                .apply { isLenient = false }
+                .parse(trimmed)
+        } catch (_: Throwable) {
+            null
+        } ?: return raw
+        val today = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val date = java.util.Calendar.getInstance().apply {
+            time = parsed
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val diffDays = ((today.timeInMillis - date.timeInMillis) / 86_400_000L).toInt()
+        val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(parsed)
+        val dayLabel = java.text.SimpleDateFormat("dd/MM", java.util.Locale("pt", "BR")).format(parsed)
+        val dayLabelWithYear =
+            java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale("pt", "BR")).format(parsed)
+        val label = when {
+            diffDays <= 0 -> "Hoje"
+            diffDays == 1 -> "Ontem"
+            date.get(java.util.Calendar.YEAR) == today.get(java.util.Calendar.YEAR) -> dayLabel
+            else -> dayLabelWithYear
+        }
+        "$label, $time"
+    } catch (_: Throwable) {
+        raw
     }
 }

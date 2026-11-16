@@ -1,31 +1,46 @@
 package com.example.ui.splash
 
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.fake.AppContainer
-import com.example.R
+import com.example.platform.DriverBiometricAccess
+import com.example.ui.components.DriverHelmetMark
 import com.example.ui.theme.ItaBackground
 import com.example.ui.theme.ItaOrange
+import com.example.ui.theme.ItaSlate300
+import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
+import com.example.ui.theme.ItaTextTertiary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
@@ -41,7 +56,10 @@ fun SplashScreen(
         // O fluxo anterior lia o valor inicial nulo e enviava ao login cedo demais.
         val currentUser = AppContainer.authRepository.restoreSession().getOrNull()
         if (currentUser == null) {
-            onNavigateToLogin(false)
+            // A biometria só é oferecida no login quando foi de fato habilitada
+            // neste aparelho (antes o valor era sempre false e o botão de
+            // digital nunca aparecia).
+            onNavigateToLogin(DriverBiometricAccess.isEnabled())
         } else {
             // Sessão viva = entra DIRETO no app, sem passar pela tela de login
             // (2.4.11). Antes, mesmo com a sessão restaurada, a Splash mandava
@@ -57,48 +75,120 @@ fun SplashScreen(
         }
     }
 
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val context = LocalContext.current
+    val appVersion = remember {
+        // Mesmo padrão do AppUpdateChecker: PackageManager com fallback
+        // silencioso — sem versão conhecida, o rodapé some.
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
     Surface(
-        modifier = modifier
-            .fillMaxSize()
-            .background(ItaBackground),
+        modifier = modifier.fillMaxSize(),
         color = ItaBackground
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.itasuper_driver_helmet),
-                contentDescription = "ItaSuper Entregador",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(88.dp)
-            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn() + slideInVertically { it / 8 },
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // A arte do capacete é uma máscara branca: sem o tint
+                    // laranja ela some no fundo claro.
+                    DriverHelmetMark(
+                        tint = ItaOrange,
+                        contentDescription = "ItaSuper Entregador",
+                        modifier = Modifier.size(120.dp)
+                    )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = "ItaSuper Entregador",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = ItaTextPrimary
-            )
+                    Text(
+                        text = "ItaSuper Entregador",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = ItaTextPrimary,
+                        textAlign = TextAlign.Center
+                    )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Operação de loja",
-                fontSize = 14.sp,
-                color = ItaTextSecondary
-            )
+                    Text(
+                        text = "Operação de loja",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ItaTextSecondary
+                    )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-            CircularProgressIndicator(
-                color = ItaOrange,
-                modifier = Modifier.size(28.dp),
-                strokeWidth = 3.dp
-            )
+                    SplashRouteMotif()
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    CircularProgressIndicator(
+                        color = ItaOrange,
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 3.dp
+                    )
+                }
+            }
+
+            if (!appVersion.isNullOrBlank()) {
+                Text(
+                    text = "Versão $appVersion",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ItaTextTertiary,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp)
+                )
+            }
         }
+    }
+}
+
+/** A linha da rota, sutil: origem laranja + duas paradas neutras. */
+@Composable
+private fun SplashRouteMotif() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(ItaOrange)
+        )
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(3.dp)
+                .background(ItaSlate300)
+        )
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(ItaSurface)
+                .border(2.dp, ItaSlate300, CircleShape)
+        )
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(3.dp)
+                .background(ItaSlate300)
+        )
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(ItaSurface)
+                .border(2.dp, ItaSlate300, CircleShape)
+        )
     }
 }

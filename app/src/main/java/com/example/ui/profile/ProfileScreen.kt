@@ -42,6 +42,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -118,6 +119,16 @@ fun ProfileScreen(
     val isDirectoryPreferenceError by viewModel.isDirectoryPreferenceError.collectAsState()
     val linkUiState by linkViewModel.uiState.collectAsState()
     val context = LocalContext.current
+    // Versão do app no rodapé do perfil (mesmo padrão de leitura do
+    // AppUpdateChecker: PackageManager direto, sem inventar número).
+    val appVersionName = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+                .versionName?.takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
+        }
+    }
     val biometricActivity = context as? FragmentActivity
     var biometricEnabled by remember(profile.id) {
         mutableStateOf(profile.id.isNotBlank() && DriverBiometricAccess.isEnabledFor(profile.id))
@@ -236,8 +247,13 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     if (profile.memberSince.isNotBlank()) {
+                        val memberSince = formatLongDatePtBr(profile.memberSince)
                         Text(
-                            text = "Cadastro em ${profile.memberSince}",
+                            text = if (memberSince != null) {
+                                "Na plataforma desde $memberSince"
+                            } else {
+                                "Cadastro em ${profile.memberSince}"
+                            },
                             fontSize = 12.sp,
                             color = ItaTextSecondary
                         )
@@ -353,8 +369,12 @@ fun ProfileScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = ItaTextPrimary
                                     )
+                                    val sinceLabel = formatLongDatePtBr(link.invitedAt)
                                     Text(
-                                        text = "${link.store.neighborhood} · Desde ${link.invitedAt.take(10)}",
+                                        text = listOf(
+                                            link.store.neighborhood,
+                                            sinceLabel?.let { "desde $it" }
+                                        ).filter { !it.isNullOrBlank() }.joinToString(" · "),
                                         fontSize = 11.sp,
                                         color = ItaTextSecondary
                                     )
@@ -372,6 +392,11 @@ fun ProfileScreen(
                     }
                 }
             }
+
+            // Saúde do rastreio logo abaixo das lojas: o que falta
+            // configurar neste aparelho p/ o mapa da loja não perder o
+            // motoboy enquanto ele estiver Online.
+            TrackingHealthCard(health = presenceHealth)
 
             // GPS App Preference
             Card(
@@ -466,10 +491,6 @@ fun ProfileScreen(
                 }
             }
 
-            // Saúde do rastreio: o que falta configurar neste aparelho p/ o
-            // mapa da loja não perder o motoboy enquanto ele estiver Online.
-            TrackingHealthCard(health = presenceHealth)
-
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -541,6 +562,29 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = ItaStatusDanger
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Rodapé: versão real do app + tagline, como no preview.
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (appVersionName != null) {
+                    Text(
+                        text = "ItaSuper Entregador · versão $appVersionName",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ItaTextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                Text(
+                    text = "Feito para quem roda com as lojas da sua cidade.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ItaTextSecondary
                 )
             }
 
@@ -840,7 +884,7 @@ private fun DriverDirectoryPreferenceCard(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Color(0xFFF59E0B))
+            HorizontalDivider(color = ItaOrange.copy(alpha = 0.35f))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "1. Defina sua cidade de atuação",
@@ -1185,5 +1229,31 @@ private fun NavPreferenceOption(
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = if (isSelected) ItaOrange else ItaTextSecondary
         )
+    }
+}
+
+/**
+ * Data longa em português: "14 de março de 2026". Aceita "yyyy-MM-dd" ou
+ * um timestamp ISO (usa os 10 primeiros caracteres, como o Perfil já fazia
+ * com `take(10)`). Devolve null quando não dá para parsear — quem chama
+ * decide o fallback. Mesmo padrão do Histórico: split + validação simples,
+ * sem java.time (minSdk 24).
+ */
+private fun formatLongDatePtBr(raw: String): String? {
+    return try {
+        val isoDate = raw.trim().take(10)
+        val parts = isoDate.split("-")
+        if (parts.size != 3) return null
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+        if (month !in 1..12 || day !in 1..31 || year < 2000) return null
+        val monthName = arrayOf(
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+        )[month - 1]
+        "$day de $monthName de $year"
+    } catch (_: Throwable) {
+        null
     }
 }

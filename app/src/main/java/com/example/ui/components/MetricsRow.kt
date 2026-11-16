@@ -10,15 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaOrange
@@ -54,7 +53,7 @@ fun MetricsRow(
         MetricItem(
             title = "Concluídas",
             value = completedCount.toString(),
-            valueColor = if (completedCount > 0) ItaSlate900 else ItaSlate500,
+            valueColor = if (completedCount > 0) ItaGreenDark else ItaSlate500,
             subtitle = "hoje",
             modifier = Modifier.weight(1f),
             testTag = "metric_completed_orders"
@@ -73,34 +72,30 @@ private fun MetricItem(
 ) {
     Column(
         modifier = modifier
-            .background(ItaSurface, RoundedCornerShape(12.dp))
-            .border(1.dp, ItaBorder, RoundedCornerShape(12.dp))
-            .padding(vertical = 12.dp, horizontal = 6.dp)
+            .background(ItaSurface, RoundedCornerShape(16.dp))
+            .border(1.dp, ItaBorder, RoundedCornerShape(16.dp))
+            .padding(vertical = 16.dp, horizontal = 8.dp)
             .testTag(testTag),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = title.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = ItaSlate500
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
             color = valueColor
         )
         if (subtitle != null) {
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = ItaSlate500
             )
         }
     }
 }
-

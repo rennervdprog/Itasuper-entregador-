@@ -45,9 +45,9 @@ val ItaSlate200 = Color(0xFFE2E8F0)
 val ItaSlate100 = Color(0xFFF1F5F9)
 val ItaSlate50 = Color(0xFFF8FAFC)
 
-// Status Colors
-val ItaStatusPending = Color(0xFFF59E0B)
-val ItaStatusPendingBg = Color(0xFFFEF3C7)
+// Status Colors — "pendente" usa laranja suave (nunca âmbar/amarelo: regra do produto).
+val ItaStatusPending = Color(0xFFE65100)
+val ItaStatusPendingBg = Color(0xFFFFEAD9)
 val ItaStatusInTransit = Color(0xFF3B82F6)
 val ItaStatusInTransitBg = Color(0xFFDBEAFE)
 val ItaStatusCompleted = Color(0xFF10B981)

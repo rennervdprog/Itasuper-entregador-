@@ -16,6 +16,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.MainActivity
 import com.example.data.model.IncomingOrderAlert
+import com.example.data.model.PaymentSummary
+import com.example.data.model.isOnlinePaidMethod
 
 /**
  * Chamada visual em tela inteira para uma entrega disponível.
@@ -72,11 +74,21 @@ object IncomingOrderOverlay {
 
         val appContext = context.applicationContext
         val manager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val orange = Color.rgb(194, 65, 12)
+        // Laranja da marca (ItaOrange #FF6A00) — o overlay usava #C2410C,
+        // divergente do resto do app. Cores do tema, em modo claro.
+        val orange = Color.rgb(255, 106, 0)
+        val orangeDark = Color.rgb(230, 81, 0)
+        val orangeLight = Color.rgb(255, 234, 217)
         val deepInk = Color.rgb(15, 23, 42)
         val slate = Color.rgb(51, 65, 85)
+        val slateMuted = Color.rgb(100, 116, 139)
         val surface = Color.rgb(255, 255, 255)
-        val mist = Color.rgb(241, 245, 249)
+        val background = Color.rgb(250, 250, 250)
+        val lineGray = Color.rgb(226, 232, 240)
+        val slatePillBg = Color.rgb(226, 232, 240)
+        val green = Color.rgb(16, 185, 129)
+        val greenDark = Color.rgb(46, 125, 50)
+        val greenLight = Color.rgb(209, 250, 229)
 
         fun label(text: String, size: Float, color: Int, style: Int = Typeface.NORMAL) =
             TextView(appContext).apply {
@@ -86,111 +98,183 @@ object IncomingOrderOverlay {
                 setTypeface(typeface, style)
             }
 
+        fun pill(text: String, textColor: Int, bgColor: Int) =
+            TextView(appContext).apply {
+                this.text = text
+                textSize = 12f
+                gravity = Gravity.CENTER
+                letterSpacing = 0.06f
+                setTextColor(textColor)
+                setTypeface(typeface, Typeface.BOLD)
+                setPadding(dp(appContext, 14), 0, dp(appContext, 14), 0)
+                background = roundedBackground(bgColor, dp(appContext, 18))
+            }
+
+        fun dot(color: Int) = View(appContext).apply {
+            background = ovalBackground(color)
+        }
+
+        fun hspace(width: Int) = View(appContext).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(appContext, width), 1)
+        }
+
         val close = TextView(appContext).apply {
             text = "×"
-            textSize = 34f
+            textSize = 24f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(deepInk)
             contentDescription = "Fechar alerta"
             setOnClickListener { dismiss() }
-            background = roundedBackground(Color.argb(35, 255, 255, 255), dp(appContext, 22))
+            background = borderedBackground(surface, dp(appContext, 22), lineGray, dp(appContext, 1))
         }
 
         val topRow = LinearLayout(appContext).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(
-                label("ITASUPER ENTREGADOR", 12f, Color.WHITE, Typeface.BOLD),
+                label("ITASUPER ENTREGADOR", 12f, slateMuted, Typeface.BOLD),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             )
             addView(close, LinearLayout.LayoutParams(dp(appContext, 44), dp(appContext, 44)))
         }
 
-        val incomingPill = TextView(appContext).apply {
-            text = "  NOVA ENTREGA DISPONÍVEL  "
-            textSize = 12f
-            gravity = Gravity.CENTER
-            letterSpacing = 0.08f
-            setTextColor(orange)
-            setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(Color.WHITE, dp(appContext, 18))
+        val pillsRow = LinearLayout(appContext).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(
+                pill("NOVA ENTREGA DISPONÍVEL", orangeDark, orangeLight),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36))
+            )
+            addView(hspace(8))
+            addView(
+                pill("Com som", slate, slatePillBg),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36))
+            )
         }
 
-        val headline = label("Uma nova rota está\nesperando por você", 30f, Color.WHITE, Typeface.BOLD).apply {
-            setLineSpacing(dp(appContext, 4).toFloat(), 1f)
-        }
-        val supporting = label(
-            "Você está livre para atender. Confira os dados\ne escolha como deseja seguir.",
-            16f,
-            Color.rgb(226, 232, 240)
-        ).apply {
-            setLineSpacing(dp(appContext, 3).toFloat(), 1f)
+        // Linha da rota como heroína: retirada → destino gigante.
+        val pickupAddress = alert?.pickupAddress?.ifBlank { "Retirada na loja parceira" }
+            ?: "Retirada na loja parceira"
+        val destinationAddress = alert?.destinationAddress?.ifBlank { neighborhood.ifBlank { "Destino disponível" } }
+            ?: neighborhood.ifBlank { "Destino disponível" }
+
+        fun stopRow(dotColor: Int, tag: String, address: String, addressSize: Float, sub: String?): LinearLayout {
+            val dotView = dot(dotColor)
+            val texts = LinearLayout(appContext).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(label(tag, 11f, slateMuted, Typeface.BOLD).apply { letterSpacing = 0.08f })
+                addView(space(appContext, 4))
+                addView(label(address, addressSize, deepInk, Typeface.BOLD))
+                if (!sub.isNullOrBlank()) {
+                    addView(space(appContext, 4))
+                    addView(label(sub, 14f, slate))
+                }
+            }
+            return LinearLayout(appContext).apply {
+                addView(
+                    dotView,
+                    LinearLayout.LayoutParams(dp(appContext, 16), dp(appContext, 16)).apply {
+                        topMargin = dp(appContext, 4)
+                        marginEnd = dp(appContext, 12)
+                    }
+                )
+                addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            }
         }
 
-        val accentLine = View(appContext).apply {
-            background = roundedBackground(orange, dp(appContext, 2))
+        val connector = View(appContext).apply {
+            background = android.graphics.drawable.ColorDrawable(lineGray)
+        }
+
+        val routeTimeline = LinearLayout(appContext).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(
+                stopRow(
+                    green,
+                    "RETIRADA · ${storeName.ifBlank { "Loja ItaSuper" }}",
+                    pickupAddress,
+                    19f,
+                    null
+                )
+            )
+            addView(
+                connector,
+                LinearLayout.LayoutParams(dp(appContext, 3), dp(appContext, 28)).apply {
+                    marginStart = dp(appContext, 6)
+                    topMargin = dp(appContext, 4)
+                    bottomMargin = dp(appContext, 4)
+                }
+            )
+            addView(
+                stopRow(
+                    orange,
+                    "DESTINO",
+                    destinationAddress,
+                    26f,
+                    neighborhood.takeIf { it.isNotBlank() && it != destinationAddress }
+                )
+            )
+        }
+
+        // Pílulas de itens/pagamento. O rótulo do método reutiliza a
+        // instrução operacional do pagamento (mesma regra da rota ativa);
+        // o valor total já vem rotulado no alerta e é exibido verbatim,
+        // sem verbo "Cobrar" inventado.
+        val rawMethod = alert?.paymentMethod.orEmpty()
+        val methodLabel = if (rawMethod.isNotBlank()) {
+            PaymentSummary(rawMethod, 0.0).driverInstruction.substringBefore(" — ")
+        } else {
+            ""
+        }
+        val isPaid = isOnlinePaidMethod(rawMethod)
+        val totalLabel = alert?.totalLabel.orEmpty()
+
+        val detailPills = LinearLayout(appContext).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val detailRow = LinearLayout(appContext).apply {
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        var detailCount = 0
+        alert?.itemCount?.takeIf { it > 0 }?.let { count ->
+            detailRow.addView(
+                pill("$count ${if (count == 1) "item" else "itens"}", slate, slatePillBg),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36))
+            )
+            detailCount++
+        }
+        if (methodLabel.isNotBlank()) {
+            if (detailCount > 0) detailRow.addView(hspace(8))
+            detailRow.addView(
+                pill(
+                    if (isPaid) "Já pago · $methodLabel" else methodLabel,
+                    if (isPaid) greenDark else slate,
+                    if (isPaid) greenLight else slatePillBg
+                ),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36))
+            )
+            detailCount++
+        }
+        if (detailCount > 0) {
+            detailPills.addView(detailRow)
+        }
+        if (totalLabel.isNotBlank()) {
+            if (detailCount > 0) detailPills.addView(space(appContext, 8))
+            val totalRow = LinearLayout(appContext).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            totalRow.addView(
+                pill(totalLabel, Color.WHITE, orange),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36))
+            )
+            detailPills.addView(totalRow)
         }
 
         val orderCode = TextView(appContext).apply {
             text = shortCode.ifBlank { "NOVO PEDIDO" }
-            textSize = 14f
-            letterSpacing = 0.06f
-            setTextColor(orange)
-            setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(Color.rgb(255, 237, 213), dp(appContext, 12))
+            textSize = 13f
+            letterSpacing = 0.08f
             gravity = Gravity.CENTER
-        }
-
-        val storeTitle = label(storeName.ifBlank { "Loja ItaSuper" }, 23f, deepInk, Typeface.BOLD)
-        val pickupLabel = label("RETIRADA", 11f, slate, Typeface.BOLD)
-        val pickupValue = label(alert?.pickupAddress?.ifBlank { "Retirada na loja parceira" } ?: "Retirada na loja parceira", 15f, deepInk, Typeface.NORMAL)
-        val destinationLabel = label("DESTINO", 11f, slate, Typeface.BOLD)
-        val destinationValue = label(
-            alert?.destinationAddress?.ifBlank { neighborhood.ifBlank { "Destino disponível" } }
-                ?: neighborhood.ifBlank { "Destino disponível" },
-            15f,
-            deepInk,
-            Typeface.NORMAL
-        )
-        val orderInfoLabel = label("PEDIDO", 11f, slate, Typeface.BOLD)
-        val orderInfo = label(
-            listOfNotNull(
-                alert?.itemCount?.takeIf { it > 0 }?.let { "$it ${if (it == 1) "item" else "itens"}" },
-                alert?.paymentMethod?.takeIf { it.isNotBlank() },
-                alert?.totalLabel?.takeIf { it.isNotBlank() }
-            ).joinToString(" • ").ifBlank { "Detalhes disponíveis ao visualizar" },
-            15f,
-            deepInk,
-            Typeface.NORMAL
-        )
-
-        fun divider() = View(appContext).apply {
-            background = android.graphics.drawable.ColorDrawable(Color.rgb(226, 232, 240))
-        }
-
-        val details = LinearLayout(appContext).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(appContext, 22), dp(appContext, 22), dp(appContext, 22), dp(appContext, 22))
-            background = roundedBackground(surface, dp(appContext, 28))
-            elevation = dp(appContext, 8).toFloat()
-            addView(orderCode, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 30)))
-            addView(space(appContext, 14))
-            addView(storeTitle)
-            addView(space(appContext, 18))
-            addView(pickupLabel)
-            addView(space(appContext, 4))
-            addView(pickupValue)
-            addView(space(appContext, 16))
-            addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1))
-            addView(space(appContext, 16))
-            addView(destinationLabel)
-            addView(space(appContext, 4))
-            addView(destinationValue)
-            addView(space(appContext, 16))
-            addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1))
-            addView(space(appContext, 16))
-            addView(orderInfoLabel)
-            addView(space(appContext, 4))
-            addView(orderInfo)
+            setTextColor(slateMuted)
+            setTypeface(typeface, Typeface.BOLD)
         }
 
         val dismissButton = Button(appContext).apply {
@@ -199,16 +283,16 @@ object IncomingOrderOverlay {
             isAllCaps = false
             setTextColor(deepInk)
             setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(Color.rgb(226, 232, 240), dp(appContext, 16))
+            background = borderedBackground(surface, dp(appContext, 18), lineGray, dp(appContext, 1))
             setOnClickListener { dismiss() }
         }
         val viewButton = Button(appContext).apply {
-            text = "Ver entrega"
-            textSize = 16f
+            text = "VER ENTREGA"
+            textSize = 20f
             isAllCaps = false
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(orange, dp(appContext, 16))
+            background = roundedBackground(orange, dp(appContext, 18))
             setOnClickListener {
                 dismiss()
                 appContext.startActivity(
@@ -218,32 +302,25 @@ object IncomingOrderOverlay {
                 )
             }
         }
-        val actionRow = LinearLayout(appContext).apply {
-            gravity = Gravity.CENTER
-            addView(dismissButton, LinearLayout.LayoutParams(0, dp(appContext, 58), 0.88f).apply {
-                marginEnd = dp(appContext, 10)
-            })
-            addView(viewButton, LinearLayout.LayoutParams(0, dp(appContext, 58), 1.35f))
-        }
 
         val root = LinearLayout(appContext).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(appContext, 24), dp(appContext, 26), dp(appContext, 24), dp(appContext, 28))
-            background = verticalBackground(deepInk, Color.rgb(31, 41, 55))
+            setBackgroundColor(background)
             isClickable = true
             addView(topRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 44)))
-            addView(space(appContext, 38))
-            addView(incomingPill, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36)))
+            addView(space(appContext, 22))
+            addView(pillsRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 36)))
+            addView(space(appContext, 22))
+            addView(routeTimeline, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(space(appContext, 20))
-            addView(headline)
-            addView(space(appContext, 14))
-            addView(supporting)
-            addView(space(appContext, 24))
-            addView(accentLine, LinearLayout.LayoutParams(dp(appContext, 58), dp(appContext, 4)))
-            addView(space(appContext, 30))
-            addView(details, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(detailPills, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(View(appContext), LinearLayout.LayoutParams(1, 0, 1f))
-            addView(actionRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 58)))
+            addView(orderCode, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(space(appContext, 12))
+            addView(viewButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 74)))
+            addView(space(appContext, 8))
+            addView(dismissButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 54)))
         }
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -305,10 +382,17 @@ object IncomingOrderOverlay {
         cornerRadius = radius.toFloat()
     }
 
-    private fun verticalBackground(top: Int, bottom: Int) = android.graphics.drawable.GradientDrawable(
-        android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-        intArrayOf(top, bottom)
-    )
+    private fun ovalBackground(color: Int) = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(color)
+    }
+
+    private fun borderedBackground(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int) =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radius.toFloat()
+            setStroke(strokeWidth, strokeColor)
+        }
 
     private fun space(context: Context, height: Int) = View(context).apply {
         layoutParams = LinearLayout.LayoutParams(1, dp(context, height))

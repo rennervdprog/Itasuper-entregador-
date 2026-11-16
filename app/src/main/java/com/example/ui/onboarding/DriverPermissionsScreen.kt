@@ -1,6 +1,8 @@
 package com.example.ui.onboarding
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,20 +13,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,8 +52,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ItaBackground
+import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaGreen
+import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaOrange
+import com.example.ui.theme.ItaSlate200
+import com.example.ui.theme.ItaSlate400
+import com.example.ui.theme.ItaStatusPending
+import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
 
@@ -86,6 +104,12 @@ private data class PermissionStep(
  * "Continuar". Obrigatórias (notificações, localização) não têm Pular;
  * as recomendadas têm, e o que ficar pulado continua cobrado no cartão
  * "Saúde do rastreio" do Perfil.
+ *
+ * Ao fim dos 5 passos, um resumo final mostra o estado REAL de cada item
+ * (o `status` que a MainActivity recalcula no sistema a cada retorno) —
+ * incluindo notificações e sobreposição, que o `PresenceHealth.allOk` não
+ * cobre. O que foi pulado aparece como pulado, com o caminho para ativar
+ * depois, no perfil.
  */
 @Composable
 fun DriverPermissionsScreen(
@@ -156,18 +180,14 @@ fun DriverPermissionsScreen(
     )
 
     var stepIndex by remember { mutableStateOf(0) }
-    val step = steps[stepIndex]
-    val isLast = stepIndex == steps.lastIndex
-    val advance: () -> Unit = {
-        if (isLast) onContinue() else stepIndex++
-        Unit
-    }
+    var skippedSteps by remember { mutableStateOf(setOf<Int>()) }
+    val showSummary = stepIndex == steps.size
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFAFA))
-            .padding(horizontal = 24.dp, vertical = 18.dp)
+            .background(ItaBackground)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -186,11 +206,9 @@ fun DriverPermissionsScreen(
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "PASSO ${stepIndex + 1} DE ${steps.size}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                color = Color(0xFF94A3B8)
+                text = if (showSummary) "RESUMO" else "PASSO ${stepIndex + 1} DE ${steps.size}",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                color = ItaSlate400
             )
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.size(48.dp))
@@ -199,165 +217,336 @@ fun DriverPermissionsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 6.dp),
+                .padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             steps.indices.forEach { i ->
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(5.dp)
+                        .height(4.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(if (i <= stepIndex) ItaOrange else Color(0xFFE2E8F0))
+                        .background(if (i <= stepIndex) ItaOrange else ItaSlate200)
                 )
-                if (i < steps.lastIndex) Spacer(modifier = Modifier.width(5.dp))
+                if (i < steps.lastIndex) Spacer(modifier = Modifier.width(4.dp))
             }
         }
 
-        Box(
-            modifier = Modifier
-                .padding(top = 42.dp)
-                .size(104.dp)
-                .clip(CircleShape)
-                .background(
-                    if (step.granted) ItaGreen.copy(alpha = 0.12f)
-                    else ItaOrange.copy(alpha = 0.12f)
-                )
-                .align(Alignment.CenterHorizontally),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (step.granted) Icons.Filled.Check else step.icon,
-                contentDescription = null,
-                tint = if (step.granted) ItaGreen else ItaOrange,
-                modifier = Modifier.size(50.dp)
+        if (showSummary) {
+            PermissionSummaryContent(
+                steps = steps,
+                skippedSteps = skippedSteps,
+                onRevisitStep = { index ->
+                    skippedSteps = skippedSteps - index
+                    stepIndex = index
+                },
+                onContinue = onContinue,
+                modifier = Modifier.weight(1f)
             )
-        }
+        } else {
+            val step = steps[stepIndex]
+            val isLast = stepIndex == steps.lastIndex
+            val advance: () -> Unit = { stepIndex++ }
 
-        if (!step.mandatory) {
+            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 32.dp)
+                        .size(104.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (step.granted) ItaGreen.copy(alpha = 0.12f)
+                            else ItaOrange.copy(alpha = 0.12f)
+                        )
+                        .align(Alignment.CenterHorizontally),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (step.granted) Icons.Filled.Check else step.icon,
+                        contentDescription = null,
+                        tint = if (step.granted) ItaGreen else ItaOrange,
+                        modifier = Modifier.size(50.dp)
+                    )
+                }
+
+                if (!step.mandatory) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(ItaOrange)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = "RECOMENDADO",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = step.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = ItaTextPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                )
+
+                if (step.granted) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = ItaGreen,
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = step.grantedLabel,
+                            color = ItaGreen,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+
+                Text(
+                    text = step.description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = ItaTextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                if (step.granted) {
+                    Button(
+                        onClick = advance,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Text(
+                            text = if (isLast) "Ver resumo" else "Continuar",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = step.onRequest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Text(
+                            text = step.actionLabel,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                    if (step.mandatory) {
+                        if (step.hint != null) {
+                            Text(
+                                text = step.hint,
+                                color = ItaSlate400,
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp)
+                            )
+                        }
+                    } else {
+                        TextButton(
+                            onClick = {
+                                skippedSteps = skippedSteps + stepIndex
+                                advance()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Pular por agora",
+                                color = ItaTextSecondary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionSummaryContent(
+    steps: List<PermissionStep>,
+    skippedSteps: Set<Int>,
+    onRevisitStep: (Int) -> Unit,
+    onContinue: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
             Box(
                 modifier = Modifier
-                    .padding(top = 16.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(ItaOrange)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 32.dp)
+                    .size(88.dp)
+                    .clip(CircleShape)
+                    .background(ItaGreen.copy(alpha = 0.12f))
+                    .align(Alignment.CenterHorizontally),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "RECOMENDADO",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.8.sp
-                )
-            }
-        }
-
-        Text(
-            text = step.title,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = ItaTextPrimary,
-            textAlign = TextAlign.Center,
-            lineHeight = 27.sp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 20.dp)
-        )
-
-        if (step.granted) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     imageVector = Icons.Filled.Check,
                     contentDescription = null,
                     tint = ItaGreen,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(46.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = step.grantedLabel,
-                    color = ItaGreen,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
             }
+
+            Text(
+                text = "Tudo pronto para rodar.",
+                style = MaterialTheme.typography.headlineSmall,
+                color = ItaTextPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+            )
+            Text(
+                text = "Este é o estado real das 5 permissões — incluindo notificações e alerta em tela cheia.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ItaTextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = ItaSurface),
+                border = BorderStroke(1.dp, ItaBorder)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    steps.forEachIndexed { index, step ->
+                        val skipped = index in skippedSteps
+                        PermissionSummaryRow(
+                            step = step,
+                            skipped = skipped,
+                            onClick = if (step.granted) null else ({ onRevisitStep(index) })
+                        )
+                        if (index < steps.lastIndex) {
+                            HorizontalDivider(color = ItaBorder)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Text(
-            text = step.description,
-            fontSize = 15.sp,
-            color = ItaTextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 23.sp,
+        Button(
+            onClick = onContinue,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp)
+                .height(58.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Text(
+                text = "Começar a usar o app",
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun PermissionSummaryRow(
+    step: PermissionStep,
+    skipped: Boolean,
+    onClick: (() -> Unit)?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(onClick?.let { handler -> Modifier.clickable { handler() } } ?: Modifier)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (step.granted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+            contentDescription = null,
+            tint = if (step.granted) ItaGreen else ItaSlate400,
+            modifier = Modifier.size(24.dp)
         )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        if (step.granted) {
-            Button(
-                onClick = advance,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                shape = RoundedCornerShape(14.dp)
-            ) {
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = step.grantedLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = ItaTextPrimary
+            )
+            if (!step.granted) {
                 Text(
-                    text = if (isLast) "Começar a usar o app" else "Continuar",
-                    modifier = Modifier.padding(vertical = 6.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    text = if (skipped) {
+                        "Pulado — você pode ativar depois, no seu perfil."
+                    } else {
+                        "Não ativado — você pode ativar depois, no seu perfil."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ItaTextSecondary
                 )
-            }
-        } else {
-            Button(
-                onClick = step.onRequest,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(
-                    text = step.actionLabel,
-                    modifier = Modifier.padding(vertical = 6.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            }
-            if (step.mandatory) {
-                if (step.hint != null) {
-                    Text(
-                        text = step.hint,
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 17.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp)
-                    )
-                }
-            } else {
-                TextButton(
-                    onClick = advance,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Pular por agora",
-                        color = ItaTextSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                }
             }
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = when {
+                step.granted -> "Ativada"
+                skipped -> "Pulada"
+                else -> "Pendente"
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = when {
+                step.granted -> ItaGreenDark
+                skipped -> ItaSlate400
+                else -> ItaStatusPending
+            }
+        )
+        if (onClick != null) {
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = "Voltar a este passo",
+                tint = ItaSlate400,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
