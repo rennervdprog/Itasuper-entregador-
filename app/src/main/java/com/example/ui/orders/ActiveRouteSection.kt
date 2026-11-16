@@ -251,7 +251,8 @@ fun ActiveRouteSection(
                     onConfirmPin = { onOpenPinConfirm(order) },
                     onNavigate = { onOpenNavigation(navPreference, order) },
                     onCallCustomer = { onOpenContact("Telefone", order.customerPhone) },
-                    onWhatsApp = { onOpenContact("WhatsApp", order.customerPhone) }
+                    onWhatsApp = { onOpenContact("WhatsApp", order.customerPhone) },
+                    isHeroCovered = nextStopOrder?.id == order.id
                 )
             }
         }
@@ -679,7 +680,11 @@ fun ActiveDeliveryCard(
     onConfirmPin: () -> Unit,
     onNavigate: () -> Unit,
     onCallCustomer: () -> Unit,
-    onWhatsApp: () -> Unit
+    onWhatsApp: () -> Unit,
+    // O cartão do pedido coberto pelo herói ("próxima parada") é só resumo:
+    // as ações (Mapa/Ligar/WhatsApp + PIN) vivem no herói, acima dele.
+    // Cartões de outros pedidos mantêm seus botões — o herói não os cobre.
+    isHeroCovered: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -793,8 +798,9 @@ fun ActiveDeliveryCard(
             HorizontalDivider(color = ItaDivider)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // In-transit actions: Navigation, WhatsApp, Call
-            if (isInTransit) {
+            // In-transit actions: Navigation, WhatsApp, Call — só quando o
+            // herói não cobre este pedido (o herói já traz o mesmo dock).
+            if (isInTransit && !isHeroCovered) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -935,9 +941,12 @@ fun ActiveDeliveryCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (!isHeroCovered) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
-            // Main Action Button depending on status
+            // Main Action Button depending on status — o cartão coberto
+            // pelo herói não mostra botão: a ação vive no herói.
             if (isReady) {
                 Button(
                     onClick = onDispatch,
@@ -961,7 +970,7 @@ fun ActiveDeliveryCard(
                         color = Color.White
                     )
                 }
-            } else {
+            } else if (!isHeroCovered) {
                 Button(
                     onClick = onConfirmPin,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
