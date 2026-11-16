@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.HeadsetMic
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -63,8 +62,8 @@ enum class DashboardTab(
     val testTag: String
 ) {
     ORDERS("Pedidos", null, null, "nav_tab_orders"),
-    SUPPORT("Suporte", Icons.Filled.HeadsetMic, Icons.Outlined.HeadsetMic, "nav_tab_support"),
-    PROFILE("Perfil", Icons.Filled.Person, Icons.Outlined.Person, "nav_tab_profile")
+    SUPPORT("Suporte", Icons.Filled.HeadsetMic, Icons.Filled.HeadsetMic, "nav_tab_support"),
+    PROFILE("Perfil", Icons.Filled.Person, Icons.Filled.Person, "nav_tab_profile")
 }
 
 @Composable
@@ -138,8 +137,7 @@ fun DashboardScreen(
                                                 else if (activeOrders.isNotEmpty()) activeOrders.size.toString()
                                                 else availableOrders.size.toString(),
                                                 color = Color.White,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold
+                                                style = MaterialTheme.typography.labelSmall
                                             )
                                         }
                                     }
@@ -148,7 +146,7 @@ fun DashboardScreen(
                                         DriverHelmetMark(
                                             contentDescription = tab.title,
                                             tint = if (isSelected) ItaOrange else ItaSlate900.copy(alpha = 0.45f),
-                                            modifier = Modifier.size(25.dp)
+                                            modifier = Modifier.size(24.dp)
                                         )
                                     } else {
                                         Icon(
@@ -161,7 +159,7 @@ fun DashboardScreen(
                                 DriverHelmetMark(
                                     contentDescription = tab.title,
                                     tint = if (isSelected) ItaOrange else ItaSlate900.copy(alpha = 0.45f),
-                                    modifier = Modifier.size(25.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             } else {
                                 Icon(
@@ -173,7 +171,7 @@ fun DashboardScreen(
                         label = {
                             Text(
                                 text = tab.title.uppercase(),
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 letterSpacing = (-0.2).sp
                             )

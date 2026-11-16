@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,12 +32,14 @@ import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryOrder
@@ -57,6 +61,9 @@ import com.example.data.model.formatBrl
 import java.util.Locale
 import kotlin.math.roundToInt
 import com.example.ui.components.DriverHelmetMark
+import com.example.ui.components.RouteLine
+import com.example.ui.components.RouteStop
+import com.example.ui.components.RouteStopState
 import com.example.data.model.NavigationPreference
 import com.example.data.model.OrderDeliveryStatus
 import com.example.ui.theme.ItaBorder
@@ -113,12 +120,17 @@ fun ActiveRouteSection(
         if (nextStopOrder != null) {
             NextStopHeroCard(
                 order = nextStopOrder,
+                orders = orders,
+                currentStopNumber = realStopNumber(orders, nextStopOrder),
                 totalStops = orders.size,
                 navPreference = navPreference,
                 onNavPrefChange = onNavPrefChange,
-                onStartNav = { onOpenNavigation(navPreference, nextStopOrder) }
+                onStartNav = { onOpenNavigation(navPreference, nextStopOrder) },
+                onOpenPinConfirm = { onOpenPinConfirm(nextStopOrder) },
+                onCallCustomer = { onOpenContact("Telefone", nextStopOrder.customerPhone) },
+                onWhatsApp = { onOpenContact("WhatsApp", nextStopOrder.customerPhone) }
             )
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // "Sua rota" Summary Bar
@@ -129,12 +141,12 @@ fun ActiveRouteSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Route,
+                    imageVector = Icons.Filled.Route,
                     contentDescription = null,
                     tint = ItaOrange,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Sua rota ativa (${orders.size})",
                     fontSize = 16.sp,
@@ -148,11 +160,11 @@ fun ActiveRouteSection(
                     onClick = onDispatchAll,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.testTag("btn_dispatch_all_ready")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
+                        imageVector = Icons.Filled.PlayArrow,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(15.dp)
@@ -168,7 +180,7 @@ fun ActiveRouteSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Rota otimizada: total estimado + navegação da rota inteira.
         // Fluxo correto: primeiro "Sair para entrega". O botão Navegar
@@ -203,7 +215,7 @@ fun ActiveRouteSection(
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Navegar rota (${departedStops.size} paradas)",
                         fontSize = 13.sp,
@@ -216,7 +228,7 @@ fun ActiveRouteSection(
                         text = "A rota completa abre no Google Maps — o Waze não aceita várias paradas.",
                         fontSize = 11.sp,
                         color = ItaTextSecondary,
-                        modifier = Modifier.padding(top = 6.dp)
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             } else {
@@ -230,7 +242,7 @@ fun ActiveRouteSection(
         }
 
         // Active delivery cards
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             orders.forEachIndexed { index, order ->
                 ActiveDeliveryCard(
                     order = order,
@@ -239,21 +251,59 @@ fun ActiveRouteSection(
                     onConfirmPin = { onOpenPinConfirm(order) },
                     onNavigate = { onOpenNavigation(navPreference, order) },
                     onCallCustomer = { onOpenContact("Telefone", order.customerPhone) },
-                    onWhatsApp = { onOpenContact("WhatsApp", order.customerPhone) }
+                    onWhatsApp = { onOpenContact("WhatsApp", order.customerPhone) },
+                    isHeroCovered = nextStopOrder?.id == order.id
                 )
             }
         }
     }
 }
 
+/**
+ * Número real da parada atual na sequência otimizada da rota.
+ *
+ * Fonte: `DeliveryOrder.stopOrder`, preenchido por `optimizeRouteStops`
+ * (RouteOptimizer) e aplicado à lista ativa no repositório — 1..n na
+ * ordem de entrega (quem já saiu, a partir do motoboy; quem ainda está
+ * na loja, a partir da loja). Se a lista não trouxer uma permutação
+ * válida de 1..n (ex.: dados sem otimização, todos com o padrão 1), cai
+ * para a posição do pedido na lista exibida — a mesma numeração dos
+ * cartões de parada. Só leitura do modelo existente, nenhum campo novo.
+ */
+private fun realStopNumber(orders: List<DeliveryOrder>, order: DeliveryOrder): Int {
+    val stopNumbers = orders.map { it.stopOrder }
+    val isValidSequence = stopNumbers.size == stopNumbers.toSet().size &&
+        stopNumbers.all { it in 1..orders.size }
+    return if (isValidSequence) {
+        order.stopOrder
+    } else {
+        orders.indexOf(order).takeIf { it >= 0 }?.plus(1) ?: 1
+    }
+}
+
 @Composable
 private fun NextStopHeroCard(
     order: DeliveryOrder,
-    totalStops: Int = 1,
+    orders: List<DeliveryOrder>,
+    currentStopNumber: Int,
+    totalStops: Int,
     navPreference: NavigationPreference,
     onNavPrefChange: (NavigationPreference) -> Unit,
-    onStartNav: () -> Unit
+    onStartNav: () -> Unit,
+    onOpenPinConfirm: () -> Unit,
+    onCallCustomer: () -> Unit,
+    onWhatsApp: () -> Unit
 ) {
+    val distanceText = order.routeLegKm?.let { formatRouteKm(it) }
+        ?: order.estimatedDistanceKm.takeIf { it > 0.0 }?.let { "~ ${formatRouteKm(it)}" }
+    val infoLine = listOfNotNull(
+        order.addressNeighborhood.takeIf { it.isNotBlank() },
+        distanceText,
+        "Cliente: ${order.customerName}"
+    ).joinToString(" · ")
+    val methodLabel = order.payment.driverInstruction.substringBefore(" — ")
+    val isPaid = order.payment.isPaidOnline
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -264,219 +314,355 @@ private fun NextStopHeroCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: EM ENTREGA ATIVA + Próxima Parada + PARADA 1 DE X badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(ItaOrange, RoundedCornerShape(50.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.TwoWheeler,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "EM ROTA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${order.shortCode} · ${order.store.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ItaTextTertiary,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Parada atual com o número real da sequência otimizada.
+            Text(
+                text = "PARADA $currentStopNumber DE $totalStops · PRÓXIMA PARADA",
+                style = MaterialTheme.typography.labelMedium,
+                color = ItaOrangeDark
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = order.shortAddress + (order.addressComplement?.let { " - $it" } ?: ""),
+                style = MaterialTheme.typography.displaySmall,
+                color = ItaTextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = infoLine,
+                style = MaterialTheme.typography.bodyMedium,
+                color = ItaTextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Pagamento em bloco heroico: cobrar (laranja sólido, sem
+            // gradiente) ou já pago (verde suave). Valor e troco vêm dos
+            // mesmos campos de hoje; nada de ganho do motoboy aqui.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (isPaid) ItaGreenLight else ItaOrange,
+                        RoundedCornerShape(20.dp)
+                    )
+                    .padding(16.dp)
             ) {
                 Column {
                     Text(
-                        text = "EM ENTREGA ATIVA",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
-                        color = ItaOrange
+                        text = if (isPaid) {
+                            "PAGAMENTO · $methodLabel"
+                        } else {
+                            "COBRAR NA ENTREGA · $methodLabel"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isPaid) ItaGreenDark else Color.White
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Próxima parada",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ItaSlate900
+                        text = if (isPaid) "Já pago" else formatBrl(order.payment.amount),
+                        style = MaterialTheme.typography.displaySmall,
+                        color = if (isPaid) ItaGreenDark else Color.White
                     )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(ItaSlate100, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "PARADA 1 DE $totalStops",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ItaSlate600
-                    )
+                    if (isPaid) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Total do pedido: ${formatBrl(order.payment.amount)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ItaGreenDark
+                        )
+                    }
+                    order.payment.displayChangeText?.let { changeText ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = changeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isPaid) ItaGreenDark else Color.White
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Inner slate container
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ItaSlate50, RoundedCornerShape(16.dp))
-                    .border(1.dp, ItaSlate200, RoundedCornerShape(16.dp))
-                    .padding(14.dp)
+            // Seletor do app de navegação (Maps/Waze), como hoje: a
+            // preferência decide para onde o botão Mapa do dock navega.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Destination + Pedido #code
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrangeLight else ItaSurface,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate200,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onNavPrefChange(NavigationPreference.GOOGLE_MAPS) }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Bairro: ${order.addressNeighborhood}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ItaSlate900
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.DirectionsCar,
+                            contentDescription = null,
+                            tint = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate600,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = order.shortAddress + (order.addressComplement?.let { " - $it" } ?: ""),
-                            fontSize = 12.sp,
-                            color = ItaSlate500
-                        )
-                    }
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "PEDIDO",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ItaSlate400
-                        )
-                        Text(
-                            text = order.shortCode,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ItaSlate900
+                            text = "Maps",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate700
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Navigation App Selector Buttons (Maps & Waze)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            color = if (navPreference == NavigationPreference.WAZE) ItaOrangeLight else ItaSurface,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate200,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onNavPrefChange(NavigationPreference.WAZE) }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrangeLight else ItaSurface,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate200,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onNavPrefChange(NavigationPreference.GOOGLE_MAPS) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.DirectionsCar,
-                                contentDescription = null,
-                                tint = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate600,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Maps",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (navPreference == NavigationPreference.GOOGLE_MAPS) ItaOrange else ItaSlate700
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = if (navPreference == NavigationPreference.WAZE) ItaOrangeLight else ItaSurface,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate200,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onNavPrefChange(NavigationPreference.WAZE) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Navigation,
-                                contentDescription = null,
-                                tint = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate600,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Waze",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate700
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Payment Info & Troco Note
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Pagamento: ${order.payment.method}",
-                        fontSize = 12.sp,
-                        color = ItaSlate600,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    order.payment.displayChangeText?.let { changeText ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = null,
+                            tint = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate600,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = changeText,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ItaOrange
+                            text = "Waze",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (navPreference == NavigationPreference.WAZE) ItaOrange else ItaSlate700
                         )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                // Primary Start Navigation Action Button
+            // Dock de 3 colunas com os MESMOS intents de hoje: Mapa abre
+            // a navegação externa; Ligar e WhatsApp, o contato do cliente.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Button(
                     onClick = onStartNav,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaOrange),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    contentPadding = PaddingValues(4.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
+                        .weight(1f)
+                        .height(64.dp)
                         .testTag("btn_start_navigation_hero")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Navigation,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Navegar com ${navPreference.displayName}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.White
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Mapa",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
+                    }
                 }
+
+                OutlinedButton(
+                    onClick = onCallCustomer,
+                    shape = RoundedCornerShape(18.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(64.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Call,
+                            contentDescription = null,
+                            tint = ItaTextPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Ligar",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = ItaTextPrimary
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onWhatsApp,
+                    shape = RoundedCornerShape(18.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(64.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Chat,
+                            contentDescription = null,
+                            tint = ItaGreenDark,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "WhatsApp",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = ItaTextPrimary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Mapa abre no Google Maps ou Waze, como hoje.",
+                style = MaterialTheme.typography.bodySmall,
+                color = ItaTextTertiary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "SUA ROTA",
+                style = MaterialTheme.typography.labelSmall,
+                color = ItaTextTertiary
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Linha da rota completa: retirada feita, parada atual e
+            // próximas, na sequência otimizada já exibida pelos cartões.
+            RouteLine(
+                stops = buildList {
+                    add(
+                        RouteStop(
+                            title = "Retirada · ${order.store.name}",
+                            subtitle = order.store.address.takeIf { it.isNotBlank() },
+                            state = RouteStopState.DONE
+                        )
+                    )
+                    val heroIndex = orders.indexOf(order)
+                    orders.forEachIndexed { index, routeOrder ->
+                        val isDeparted = routeOrder.status == OrderDeliveryStatus.SAIU_ENTREGA ||
+                            routeOrder.status == OrderDeliveryStatus.EM_TRANSITO
+                        add(
+                            RouteStop(
+                                title = routeOrder.shortAddress +
+                                    (routeOrder.addressComplement?.let { " - $it" } ?: ""),
+                                subtitle = listOfNotNull(
+                                    routeOrder.addressNeighborhood.takeIf { it.isNotBlank() },
+                                    "Cliente: ${routeOrder.customerName}"
+                                ).joinToString(" · "),
+                                state = when {
+                                    index == heroIndex -> RouteStopState.CURRENT
+                                    index < heroIndex && isDeparted -> RouteStopState.DONE
+                                    else -> RouteStopState.NEXT
+                                }
+                            )
+                        )
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Chegada abre a confirmação com PIN — o mesmo callback do
+            // botão "Confirmar entrega com PIN" do cartão da parada.
+            Button(
+                onClick = onOpenPinConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .testTag("btn_arrived_destination")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "CHEGUEI AO DESTINO",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
+                )
             }
         }
     }
 }
+
 
 /** Formata distância de trecho/total em pt-BR: "850 m" ou "1,2 km". */
 private fun formatRouteKm(km: Double): String =
@@ -494,7 +680,11 @@ fun ActiveDeliveryCard(
     onConfirmPin: () -> Unit,
     onNavigate: () -> Unit,
     onCallCustomer: () -> Unit,
-    onWhatsApp: () -> Unit
+    onWhatsApp: () -> Unit,
+    // O cartão do pedido coberto pelo herói ("próxima parada") é só resumo:
+    // as ações (Mapa/Ligar/WhatsApp + PIN) vivem no herói, acima dele.
+    // Cartões de outros pedidos mantêm seus botões — o herói não os cobre.
+    isHeroCovered: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -549,19 +739,19 @@ fun ActiveDeliveryCard(
                             if (isReady) ItaStatusPendingBg else ItaStatusInTransitBg,
                             RoundedCornerShape(6.dp)
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = if (isReady) "PRONTO PARA SAIR" else "EM ENTREGA",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.4.sp,
-                        color = if (isReady) Color(0xFFB45309) else Color(0xFF1D4ED8)
+                        color = if (isReady) ItaStatusPending else Color(0xFF1D4ED8)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Destination Neighborhood + Address
             Text(
@@ -570,7 +760,7 @@ fun ActiveDeliveryCard(
                 fontWeight = FontWeight.Bold,
                 color = ItaSlate900
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = order.fullAddress,
                 fontSize = 13.sp,
@@ -578,7 +768,7 @@ fun ActiveDeliveryCard(
             )
 
             if (order.routeLegKm != null) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Route,
@@ -596,7 +786,7 @@ fun ActiveDeliveryCard(
             }
 
             // Customer Name & Contact
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Cliente: ${order.customerName}",
                 fontSize = 12.sp,
@@ -608,8 +798,9 @@ fun ActiveDeliveryCard(
             HorizontalDivider(color = ItaDivider)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // In-transit actions: Navigation, WhatsApp, Call
-            if (isInTransit) {
+            // In-transit actions: Navigation, WhatsApp, Call — só quando o
+            // herói não cobre este pedido (o herói já traz o mesmo dock).
+            if (isInTransit && !isHeroCovered) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -617,14 +808,14 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onNavigate,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp)
                             .testTag("btn_nav_delivery_${order.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.DirectionsCar,
+                            imageVector = Icons.Filled.DirectionsCar,
                             contentDescription = null,
                             tint = ItaOrange,
                             modifier = Modifier.size(15.dp)
@@ -636,14 +827,14 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onWhatsApp,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp)
                             .testTag("btn_whatsapp_delivery_${order.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Chat,
+                            imageVector = Icons.Filled.Chat,
                             contentDescription = null,
                             tint = Color(0xFF25D366),
                             modifier = Modifier.size(15.dp)
@@ -655,13 +846,13 @@ fun ActiveDeliveryCard(
                     OutlinedButton(
                         onClick = onCallCustomer,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .height(40.dp)
                             .testTag("btn_call_delivery_${order.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Call,
+                            imageVector = Icons.Filled.Call,
                             contentDescription = null,
                             tint = ItaSlate500,
                             modifier = Modifier.size(15.dp)
@@ -669,7 +860,7 @@ fun ActiveDeliveryCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Expandable Items and Payment Breakdown
@@ -688,7 +879,7 @@ fun ActiveDeliveryCard(
                         color = ItaSlate700,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = order.payment.driverInstruction,
                         fontSize = 11.sp,
@@ -697,7 +888,7 @@ fun ActiveDeliveryCard(
                     )
                 }
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
                     tint = ItaSlate400,
                     modifier = Modifier.size(18.dp)
@@ -709,16 +900,10 @@ fun ActiveDeliveryCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(ItaSlate50, RoundedCornerShape(10.dp))
-                        .padding(10.dp)
+                        .padding(12.dp)
                 ) {
-                    Text(
-                        text = order.payment.driverInstruction,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (order.payment.isPaidOnline) ItaGreenDark else ItaSlate700
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                    // Sem repetir a instrução de pagamento aqui: ela já
+                    // está na linha de resumo acima da caixa.
                     order.items.forEach { item ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -744,15 +929,18 @@ fun ActiveDeliveryCard(
                             text = "Troco: $changeText",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFB45309)
+                            color = ItaStatusPending
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (!isHeroCovered) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
-            // Main Action Button depending on status
+            // Main Action Button depending on status — o cartão coberto
+            // pelo herói não mostra botão: a ação vive no herói.
             if (isReady) {
                 Button(
                     onClick = onDispatch,
@@ -776,7 +964,7 @@ fun ActiveDeliveryCard(
                         color = Color.White
                     )
                 }
-            } else {
+            } else if (!isHeroCovered) {
                 Button(
                     onClick = onConfirmPin,
                     colors = ButtonDefaults.buttonColors(containerColor = ItaGreenDark),
@@ -787,7 +975,7 @@ fun ActiveDeliveryCard(
                         .testTag("btn_confirm_delivery_${order.id}")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Key,
+                        imageVector = Icons.Filled.Key,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)

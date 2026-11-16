@@ -13,6 +13,7 @@ import com.example.platform.DriverBiometricAccess
 import com.example.ui.auth.AuthViewModel
 import com.example.ui.auth.BiometricEnrollmentScreen
 import com.example.ui.auth.LoginScreen
+import com.example.ui.auth.MotoboyRegistrationScreen
 import com.example.ui.dashboard.DashboardScreen
 import com.example.ui.history.HistoryViewModel
 import com.example.ui.onboarding.DriverLinkViewModel
@@ -67,6 +68,9 @@ fun AppNavHost(
             LoginScreen(
                 viewModel = authViewModel,
                 biometricAvailable = biometricAvailable,
+                onNavigateToRegistration = {
+                    navController.navigate(Screen.Registration.route)
+                },
                 onBiometricSuccess = { _, hasLink ->
                     navigateAfterAuthentication(hasLink, Screen.Login.route)
                 },
@@ -79,6 +83,26 @@ fun AppNavHost(
                         }
                     }
                 }
+            )
+        }
+
+        composable(Screen.Registration.route) {
+            val authViewModel: AuthViewModel = viewModel()
+            MotoboyRegistrationScreen(
+                viewModel = authViewModel,
+                onRegistrationSuccess = { profile, hasLink ->
+                    // Mesmo destino do login por senha: biometria já ativa
+                    // entra direto; senão, oferece o cadastro da biometria.
+                    // O popUpTo do login remove o cadastro e o login da pilha.
+                    if (DriverBiometricAccess.isEnabledFor(profile.id)) {
+                        navigateAfterAuthentication(hasLink, Screen.Login.route)
+                    } else {
+                        navController.navigate(Screen.BiometricEnrollment.createRoute(profile.id, hasLink)) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
+                },
+                onBackToLogin = { navController.popBackStack() }
             )
         }
 

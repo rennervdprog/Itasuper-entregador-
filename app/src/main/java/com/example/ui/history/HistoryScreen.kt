@@ -1,7 +1,7 @@
 package com.example.ui.history
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,10 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +49,11 @@ import com.example.ui.theme.ItaGreenDark
 import com.example.ui.theme.ItaGreenLight
 import com.example.ui.theme.ItaOrange
 import com.example.ui.theme.ItaOrangeLight
+import com.example.ui.theme.ItaSlate100
+import com.example.ui.theme.ItaSlate200
+import com.example.ui.theme.ItaSlate500
+import com.example.ui.theme.ItaSlate600
+import com.example.ui.theme.ItaStatusInTransit
 import com.example.ui.theme.ItaStatusPending
 import com.example.ui.theme.ItaStatusPendingBg
 import com.example.ui.theme.ItaSurface
@@ -66,6 +71,9 @@ fun HistoryScreen(
     val summary by viewModel.historySummary.collectAsState()
 
     val filters = listOf("7 dias", "30 dias", "Tudo")
+    // Agrupado por dia, na ordem em que as entregas chegam (mais recentes
+    // primeiro). O groupBy preserva a ordem de primeira aparição da chave.
+    val entriesByDay = entries.groupBy { it.dateFormatted }
 
     Surface(
         modifier = modifier
@@ -77,7 +85,7 @@ fun HistoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Segmented Filters Row
             item {
@@ -95,7 +103,7 @@ fun HistoryScreen(
                             label = {
                                 Text(
                                     text = filter,
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
@@ -115,7 +123,7 @@ fun HistoryScreen(
                 }
             }
 
-            // 4 Metrics Grid
+            // Metrics: corridas + distância, sem fantasma de ganhos.
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -125,7 +133,7 @@ fun HistoryScreen(
                         HistoryMetricCard(
                             title = "Corridas",
                             value = "${summary.totalRides} entregas",
-                            icon = Icons.Default.DirectionsBike,
+                            icon = Icons.Filled.DirectionsBike,
                             iconColor = ItaOrange,
                             modifier = Modifier.weight(1f),
                             testTag = "metric_history_rides"
@@ -136,12 +144,37 @@ fun HistoryScreen(
                         HistoryMetricCard(
                             title = "Distância Total",
                             value = "${String.format("%.1f", summary.totalDistanceKm)} km",
-                            icon = Icons.Default.Timeline,
-                            iconColor = Color(0xFF3B82F6),
+                            icon = Icons.Filled.Timeline,
+                            iconColor = ItaStatusInTransit,
                             modifier = Modifier.fillMaxWidth(),
                             testTag = "metric_history_distance"
                         )
                     }
+                }
+            }
+
+            // Aviso honesto: o pagamento é da loja, fora do app.
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ItaOrangeLight, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Store,
+                        contentDescription = null,
+                        tint = ItaOrange,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Você é pago pela loja, fora do app. Aqui ficam suas corridas e distâncias — nada de “ganhos” que não existem.",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = ItaTextSecondary
+                    )
                 }
             }
 
@@ -150,21 +183,22 @@ fun HistoryScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .background(ItaSlate100, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = Icons.Filled.Info,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = ItaSlate500,
                         modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "A distância é estimada em linha reta com base nas coordenadas disponíveis.",
-                        fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = ItaSlate500
                     )
                 }
             }
@@ -173,32 +207,44 @@ fun HistoryScreen(
             item {
                 Text(
                     text = "Histórico de entregas",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
                     color = ItaTextPrimary
                 )
             }
 
-            // History entries
+            // O HistoryViewModel expõe só filtro, lista e resumo — sem estado
+            // de loading/erro. Sem sinal real, inventar spinner/erro seria
+            // desonesto: a lista vazia é o estado vazio (também é o que se
+            // vê no instante inicial, antes do primeiro carregamento).
             if (entries.isEmpty()) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = ItaSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+                        border = BorderStroke(1.dp, ItaBorder)
                     ) {
                         Text(
                             text = "Nenhuma entrega concluída neste período. Altere o filtro para consultar outro intervalo.",
-                            modifier = Modifier.padding(18.dp),
-                            color = ItaTextSecondary,
-                            fontSize = 14.sp
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ItaTextSecondary
                         )
                     }
                 }
             } else {
-                items(entries, key = { it.id }) { entry ->
-                    HistoryEntryCard(entry = entry)
+                entriesByDay.forEach { (date, dayEntries) ->
+                    item {
+                        Text(
+                            text = formatDayLabel(date),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = ItaTextPrimary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    items(dayEntries, key = { it.id }) { entry ->
+                        HistoryEntryCard(entry = entry)
+                    }
                 }
             }
 
@@ -221,9 +267,9 @@ private fun HistoryMetricCard(
 ) {
     Card(
         modifier = modifier.testTag(testTag),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ItaSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+        border = BorderStroke(1.dp, ItaBorder)
     ) {
         Row(
             modifier = Modifier
@@ -244,24 +290,23 @@ private fun HistoryMetricCard(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = title,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = ItaTextSecondary
                 )
                 Text(
                     text = value,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
                     color = ItaTextPrimary
                 )
                 if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = ItaTextSecondary
                     )
                 }
@@ -278,12 +323,12 @@ private fun HistoryEntryCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_history_entry_${entry.id}"),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ItaSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ItaBorder)
+        border = BorderStroke(1.dp, ItaBorder)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Store Name + Date/Time + Status
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Store Name + Time + Status (o dia está no cabeçalho do grupo)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -293,20 +338,18 @@ private fun HistoryEntryCard(
                     Box(
                         modifier = Modifier
                             .background(ItaOrangeLight, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = entry.storeName.uppercase(),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.5.sp),
                             color = ItaOrange
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "${entry.orderShortCode} · ${formatRelativeDateTime(entry.dateFormatted, entry.timeFormatted)}",
-                        fontSize = 13.sp,
+                        text = "${entry.orderShortCode} · ${entry.timeFormatted}",
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = ItaTextPrimary
                     )
@@ -319,20 +362,19 @@ private fun HistoryEntryCard(
                             when (entry.statusText) {
                                 "Recebido", "Concluída" -> ItaGreenLight
                                 "Confirmar" -> ItaStatusPendingBg
-                                else -> Color(0xFFE2E8F0)
+                                else -> ItaSlate200
                             },
                             RoundedCornerShape(6.dp)
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = entry.statusText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
                         color = when (entry.statusText) {
                             "Recebido", "Concluída" -> ItaGreenDark
                             "Confirmar" -> ItaStatusPending
-                            else -> Color(0xFF475569)
+                            else -> ItaSlate600
                         }
                     )
                 }
@@ -345,22 +387,20 @@ private fun HistoryEntryCard(
             // Destination
             Text(
                 text = entry.neighborhood,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
                 color = ItaTextPrimary
             )
             Text(
                 text = entry.addressSummary,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = ItaTextSecondary
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             if (entry.distanceKm > 0.0) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "${String.format("%.1f", entry.distanceKm)} km",
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = ItaTextTertiary
                 )
             }
@@ -369,14 +409,14 @@ private fun HistoryEntryCard(
 }
 
 /**
- * Exibe a data de forma relativa e amigavel: "Hoje, 16:14", "Ontem, 16:14"
- * ou "06/10, 16:14" (com ano reduzido quando for de outro ano).
+ * Rótulo do dia, no mesmo padrão relativo de antes: "Hoje", "Ontem" ou
+ * "06/10" (com ano reduzido quando for de outro ano).
  * Espera dateFormatted no formato ISO "yyyy-MM-dd".
  */
-private fun formatRelativeDateTime(dateFormatted: String, timeFormatted: String): String {
+private fun formatDayLabel(dateFormatted: String): String {
     return try {
         val parts = dateFormatted.split("-")
-        if (parts.size != 3) return "$dateFormatted, $timeFormatted"
+        if (parts.size != 3) return dateFormatted
         val today = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
             set(java.util.Calendar.MINUTE, 0)
@@ -388,15 +428,14 @@ private fun formatRelativeDateTime(dateFormatted: String, timeFormatted: String)
             set(java.util.Calendar.MILLISECOND, 0)
         }
         val diffDays = ((today.timeInMillis - date.timeInMillis) / 86_400_000L).toInt()
-        val label = when {
+        when {
             diffDays <= 0 -> "Hoje"
             diffDays == 1 -> "Ontem"
             date.get(java.util.Calendar.YEAR) == today.get(java.util.Calendar.YEAR) ->
                 "${parts[2]}/${parts[1]}"
             else -> "${parts[2]}/${parts[1]}/${parts[0].takeLast(2)}"
         }
-        "$label, $timeFormatted"
-    } catch (_: Exception) {
-        "$dateFormatted, $timeFormatted"
+    } catch (_: Throwable) {
+        dateFormatted
     }
 }

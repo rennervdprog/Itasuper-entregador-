@@ -16,10 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,18 +32,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaOrange
+import com.example.ui.theme.ItaOrangeLight
 import com.example.ui.theme.ItaSlate300
-import com.example.ui.theme.ItaSlate900
 import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
+import com.example.ui.theme.ItaTextTertiary
 
 @Composable
 fun PinInputBoxes(
@@ -50,11 +52,46 @@ fun PinInputBoxes(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
+    val boxesFocusRequester = remember { FocusRequester() }
     // Trava de reentrada (auditoria B14): o 4º dígito dispara onConfirm e o
     // onDone do teclado dispara de novo — sem guarda, a confirmação podia
     // sair duplicada ou repetir durante o envio. Dispara 1x por PIN
-    // completo; apagar um dígito rearma a trava.
+    // completo; apagar um dígito rearma a trava. O teclado próprio usa a
+    // mesma guarda, pelo mesmo caminho de entrada.
     var lastConfirmedInput by remember { mutableStateOf<String?>(null) }
+
+    fun handlePinInput(input: String) {
+        if (input.length <= 4 && input.all { it.isDigit() }) {
+            onPinChange(input)
+            if (input.length < 4) {
+                lastConfirmedInput = null
+            } else if (lastConfirmedInput != input) {
+                lastConfirmedInput = input
+                onConfirm()
+            }
+        }
+    }
+
+    fun eraseLast() {
+        if (pin.isNotEmpty()) {
+            lastConfirmedInput = null
+            onPinChange(pin.dropLast(1))
+        }
+    }
+
+    fun clearAll() {
+        lastConfirmedInput = null
+        onPinChange("")
+    }
+
+    // Foco automático na abertura: o conjunto de caixas recebe o foco sem
+    // nenhum toque extra. O campo oculto NÃO recebe foco aqui de propósito:
+    // ele convocaria o teclado do sistema por cima do teclado próprio da
+    // tela. O teclado próprio já nasce usável; o campo oculto continua
+    // disponível para teclado físico/externo ao tocar nas caixas.
+    LaunchedEffect(Unit) {
+        boxesFocusRequester.requestFocus()
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -63,17 +100,7 @@ fun PinInputBoxes(
         // Hidden text field capturing keyboard input
         BasicTextField(
             value = pin,
-            onValueChange = { input ->
-                if (input.length <= 4 && input.all { it.isDigit() }) {
-                    onPinChange(input)
-                    if (input.length < 4) {
-                        lastConfirmedInput = null
-                    } else if (lastConfirmedInput != input) {
-                        lastConfirmedInput = input
-                        onConfirm()
-                    }
-                }
-            },
+            onValueChange = { input -> handlePinInput(input) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             keyboardActions = KeyboardActions(onDone = {
                 if (pin.length == 4 && lastConfirmedInput != pin) {
@@ -87,10 +114,11 @@ fun PinInputBoxes(
                 .testTag("pin_hidden_input")
         )
 
-        // 4 PIN visual boxes (Geometric aspect-square style)
+        // 4 PIN visual boxes (62x74 dp, usáveis com luva)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
+                .focusRequester(boxesFocusRequester)
                 .clickable { focusRequester.requestFocus() }
                 .testTag("pin_boxes_container")
         ) {
@@ -101,25 +129,125 @@ fun PinInputBoxes(
 
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .background(ItaSurface, RoundedCornerShape(12.dp))
+                        .size(width = 62.dp, height = 74.dp)
+                        .background(
+                            if (isFilled) ItaOrangeLight else ItaSurface,
+                            RoundedCornerShape(16.dp)
+                        )
                         .border(
-                            width = if (isCurrent) 2.dp else if (isFilled) 2.dp else 1.5.dp,
-                            color = if (isCurrent) ItaOrange else if (isFilled) ItaSlate900 else ItaSlate300,
-                            shape = RoundedCornerShape(12.dp)
+                            width = if (isCurrent || isFilled) 2.dp else 1.dp,
+                            color = if (isCurrent || isFilled) ItaOrange else ItaSlate300,
+                            shape = RoundedCornerShape(16.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (digit.isNotEmpty()) digit else if (isCurrent) "•" else "",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ItaSlate900,
+                        style = MaterialTheme.typography.displaySmall,
+                        color = if (digit.isNotEmpty()) ItaTextPrimary else ItaTextTertiary,
                         textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Teclado numérico próprio: alvos de 62 dp, usável com luva.
+        // Mesma entrada do campo oculto — o 4º dígito confirma sozinho.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            listOf(
+                listOf("1", "2", "3"),
+                listOf("4", "5", "6"),
+                listOf("7", "8", "9")
+            ).forEach { rowDigits ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    rowDigits.forEach { digit ->
+                        PinKey(
+                            onClick = { handlePinInput(pin + digit) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("pin_key_$digit")
+                        ) {
+                            Text(
+                                text = digit,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = ItaTextPrimary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                PinKey(
+                    onClick = { clearAll() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("pin_key_clear")
+                ) {
+                    Text(
+                        text = "Limpar",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ItaTextSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                PinKey(
+                    onClick = { handlePinInput(pin + "0") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("pin_key_0")
+                ) {
+                    Text(
+                        text = "0",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = ItaTextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                PinKey(
+                    onClick = { eraseLast() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("pin_key_backspace")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Backspace,
+                        contentDescription = "Apagar último dígito",
+                        tint = ItaTextSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinKey(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(62.dp)
+            .background(ItaSurface, RoundedCornerShape(16.dp))
+            .border(1.dp, ItaBorder, RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }

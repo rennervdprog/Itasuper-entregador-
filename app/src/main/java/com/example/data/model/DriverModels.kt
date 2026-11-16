@@ -206,15 +206,26 @@ data class DeliveryOrder(
     val deliveredAt: String? = null
 ) {
     val fullAddress: String
-        get() = listOfNotNull(
-            listOf(addressStreet, addressNumber).filter { it.isNotBlank() }.joinToString(", ").ifBlank { null },
-            addressComplement?.takeIf { it.isNotBlank() },
-            listOf(addressNeighborhood, addressCity, addressState)
+        get() {
+            val streetPart = listOf(addressStreet, addressNumber)
                 .filter { it.isNotBlank() }
-                .joinToString(" - ")
-                .ifBlank { null },
-            addressCep.takeIf { it.isNotBlank() }?.let { "CEP $it" }
-        ).joinToString(", ")
+                .joinToString(", ")
+            val parts = mutableListOf<String>()
+            if (streetPart.isNotBlank()) parts += streetPart
+            addressComplement?.takeIf { it.isNotBlank() }?.let { parts += it }
+            // O endereço bruto (address_details) já costuma trazer bairro,
+            // cidade, estado e CEP. Cada trecho estruturado só entra quando
+            // ainda não está no texto — sem isso o cartão mostrava
+            // bairro/cidade/CEP duas vezes.
+            val tailParts = listOf(addressNeighborhood, addressCity, addressState)
+                .filter { it.isNotBlank() }
+                .filter { !streetPart.containsAddressPart(it) }
+            if (tailParts.isNotEmpty()) parts += tailParts.joinToString(" - ")
+            addressCep.takeIf { it.isNotBlank() }?.let { cep ->
+                if (!streetPart.containsCep(cep)) parts += "CEP $cep"
+            }
+            return parts.joinToString(", ")
+        }
 
     val shortAddress: String
         get() = listOf(addressStreet, addressNumber).filter { it.isNotBlank() }.joinToString(", ")
@@ -225,6 +236,31 @@ data class DeliveryOrder(
         get() = items.joinToString(" + ") { item ->
             if (item.quantity == 1) item.name else "${item.quantity}x ${item.name}"
         }.ifBlank { "Itens não informados" }
+}
+
+/** Normaliza para comparação: minúsculas, só letras e dígitos. */
+private fun String.normalizedForMatch(): String =
+    lowercase().filter { it.isLetterOrDigit() }
+
+/**
+ * true quando o trecho (bairro, cidade, estado) já aparece no texto do
+ * endereço. Trecho curto (ex.: "RJ") exige fronteira de palavra para não
+ * casar dentro de outra palavra.
+ */
+private fun String.containsAddressPart(part: String): Boolean {
+    val normalizedPart = part.normalizedForMatch()
+    if (normalizedPart.length < 3) {
+        return Regex("(?i)(^|[^A-Za-z])${Regex.escape(part.trim())}([^A-Za-z]|$)")
+            .containsMatchIn(this)
+    }
+    return normalizedPart.isNotEmpty() && normalizedForMatch().contains(normalizedPart)
+}
+
+/** CEP: compara só os dígitos, para "28981-240" casar com "28981240". */
+private fun String.containsCep(cep: String): Boolean {
+    val cepDigits = cep.filter { it.isDigit() }
+    if (cepDigits.length < 8) return false
+    return filter { it.isDigit() }.contains(cepDigits)
 }
 
 /**

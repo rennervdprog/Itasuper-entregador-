@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.fake.AppContainer
 import com.example.data.model.DriverProfile
+import com.example.data.remote.ItaSuperSupabase
 import com.example.data.remote.isValidBrazilianDocument
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.DriverLinkRepository
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -210,6 +212,47 @@ class AuthViewModel(
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()
+        }
+    }
+
+    /**
+     * Envia o e-mail de recuperação de senha do GoTrue ("Esqueci a senha").
+     * O AuthRepository não expõe essa operação, por isso a chamada vai direto
+     * ao cliente Supabase — o mesmo usado pelo SupabaseAuthRepository. O
+     * GoTrue responde sucesso mesmo para e-mail sem conta, então a mensagem
+     * de sucesso é neutra de propósito (não revela se a conta existe).
+     */
+    fun requestPasswordReset(email: String, onResult: (success: Boolean, message: String) -> Unit) {
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank() || !normalizedEmail.contains("@")) {
+            onResult(false, "Informe um e-mail válido.")
+            return
+        }
+        viewModelScope.launch {
+            val result = runCatching {
+                ItaSuperSupabase.client.auth.resetPasswordForEmail(normalizedEmail)
+            }
+            if (result.isSuccess) {
+                onResult(
+                    true,
+                    "Se esse e-mail tiver uma conta no ItaSuper Entregador, " +
+                        "você vai receber o link para criar uma nova senha. " +
+                        "Verifique também a caixa de spam."
+                )
+            } else {
+                onResult(false, passwordResetErrorMessage(result.exceptionOrNull()))
+            }
+        }
+    }
+
+    private fun passwordResetErrorMessage(error: Throwable?): String {
+        val detail = error?.message.orEmpty().lowercase()
+        return when {
+            detail.contains("network") || detail.contains("timeout") || detail.contains("connection") ->
+                "Não foi possível enviar o e-mail agora. Verifique sua internet e tente novamente."
+            detail.contains("rate limit") || detail.contains("too many") || detail.contains("429") ->
+                "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."
+            else -> "Não foi possível enviar o e-mail de recuperação agora. Tente novamente em instantes."
         }
     }
 }

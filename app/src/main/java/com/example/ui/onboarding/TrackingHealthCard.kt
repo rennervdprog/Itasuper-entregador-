@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,13 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import com.example.platform.PresenceHealthChecker
 import com.example.platform.PresenceHealthState
 import com.example.ui.theme.ItaBorder
 import com.example.ui.theme.ItaGreen
 import com.example.ui.theme.ItaOrange
+import com.example.ui.theme.ItaStatusDanger
 import com.example.ui.theme.ItaSurface
 import com.example.ui.theme.ItaTextPrimary
 import com.example.ui.theme.ItaTextSecondary
@@ -44,28 +45,27 @@ fun TrackingHealthCard(health: PresenceHealthState) {
     val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ItaSurface),
         border = BorderStroke(1.dp, ItaBorder)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "Saúde do rastreio",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
                 color = ItaTextPrimary
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = if (health.allOk) {
                     "Tudo certo: enquanto você estiver Online, suas lojas veem sua posição no mapa o turno inteiro."
                 } else {
                     "Com os itens abaixo pendentes, sua posição pode sumir do mapa da loja no meio do turno. Toque num item para corrigir."
                 },
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = ItaTextSecondary
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             HealthRow(
                 ok = health.locationForeground,
@@ -98,7 +98,7 @@ fun TrackingHealthCard(health: PresenceHealthState) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = hint,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = ItaOrange,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
@@ -106,7 +106,7 @@ fun TrackingHealthCard(health: PresenceHealthState) {
                         .clickable {
                             health.manufacturerIntent?.let { context.startActivity(it) }
                         }
-                        .padding(vertical = 6.dp)
+                        .padding(vertical = 8.dp)
                 )
             }
         }
@@ -120,26 +120,25 @@ private fun HealthRow(ok: Boolean, label: String, onFix: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .then(if (ok) Modifier else Modifier.clickable { onFix() })
-            .padding(vertical = 5.dp)
+            .padding(vertical = 4.dp)
     ) {
         Icon(
             imageVector = if (ok) Icons.Filled.CheckCircle else Icons.Filled.Warning,
             contentDescription = null,
-            tint = if (ok) ItaGreen else ItaOrange,
+            tint = if (ok) ItaGreen else ItaStatusDanger,
             modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = ItaTextPrimary,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = if (ok) "OK" else "Corrigir",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (ok) ItaGreen else ItaOrange
+            style = MaterialTheme.typography.labelMedium,
+            color = if (ok) ItaGreen else ItaStatusDanger
         )
     }
 }

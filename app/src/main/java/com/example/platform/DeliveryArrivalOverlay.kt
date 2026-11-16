@@ -17,6 +17,9 @@ import android.widget.TextView
 /**
  * Alerta assistido exibido ao chegar próximo ao destino. A janela não toma a
  * navegação de volta à força: o motoboy decide tocar em "Voltar ao ItaSuper".
+ *
+ * Aviso COMPACTO: a janela ocupa só a faixa inferior da tela e o fundo fora
+ * do cartão é transparente — o mapa continua visível atrás do aviso.
  */
 object DeliveryArrivalOverlay {
     private var windowManager: WindowManager? = null
@@ -32,6 +35,9 @@ object DeliveryArrivalOverlay {
         val ink = Color.rgb(15, 23, 42)
         val surface = Color.WHITE
         val muted = Color.rgb(71, 85, 105)
+        val slateMuted = Color.rgb(100, 116, 139)
+        val lineGray = Color.rgb(226, 232, 240)
+        val slatePillBg = Color.rgb(241, 245, 249)
 
         fun text(value: String, size: Float, color: Int, style: Int = Typeface.NORMAL) = TextView(appContext).apply {
             this.text = value
@@ -42,44 +48,63 @@ object DeliveryArrivalOverlay {
 
         val close = TextView(appContext).apply {
             text = "×"
-            textSize = 30f
+            textSize = 20f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(ink)
             contentDescription = "Fechar alerta de chegada"
             setOnClickListener { dismiss() }
-            background = rounded(Color.argb(35, 255, 255, 255), dp(appContext, 22))
+            background = bordered(surface, dp(appContext, 19), lineGray, dp(appContext, 1))
         }
 
-        val header = LinearLayout(appContext).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            addView(text("ITASUPER ENTREGADOR", 12f, Color.WHITE, Typeface.BOLD), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(close, LinearLayout.LayoutParams(dp(appContext, 44), dp(appContext, 44)))
+        val mapNote = TextView(appContext).apply {
+            text = "Seu mapa continua aberto atrás deste aviso"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(muted)
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dp(appContext, 12), 0, dp(appContext, 12), 0)
+            background = bordered(surface, dp(appContext, 18), lineGray, dp(appContext, 1))
+        }
+        val mapNoteRow = LinearLayout(appContext).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(mapNote, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36)))
         }
 
         val arrivalBadge = TextView(appContext).apply {
-            text = "  CHEGADA AO DESTINO  "
-            textSize = 12f
+            text = "CHEGADA AO DESTINO"
+            textSize = 11f
             letterSpacing = 0.08f
             gravity = Gravity.CENTER
-            setTextColor(orange)
+            setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
-            background = rounded(surface, dp(appContext, 18))
+            setPadding(dp(appContext, 12), 0, dp(appContext, 12), 0)
+            background = rounded(orange, dp(appContext, 16))
+        }
+        val badgeRow = LinearLayout(appContext).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(arrivalBadge, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 32)))
+            addView(View(appContext), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(close, LinearLayout.LayoutParams(dp(appContext, 38), dp(appContext, 38)))
         }
 
         val details = LinearLayout(appContext).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(appContext, 22), dp(appContext, 22), dp(appContext, 22), dp(appContext, 22))
-            background = rounded(surface, dp(appContext, 24))
+            setPadding(dp(appContext, 18), dp(appContext, 18), dp(appContext, 18), dp(appContext, 18))
+            background = rounded(surface, dp(appContext, 20))
             elevation = dp(appContext, 8).toFloat()
-            addView(text(shortCode.ifBlank { "Entrega em andamento" }, 13f, orange, Typeface.BOLD))
-            addView(space(appContext, 14))
-            addView(text("Você chegou próximo\nao destino", 25f, ink, Typeface.BOLD))
+            addView(badgeRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(space(appContext, 12))
-            addView(text("Confirme a chegada e volte ao ItaSuper para concluir a entrega com o PIN do cliente.", 15f, muted))
-            addView(space(appContext, 18))
-            addView(text("DESTINO", 11f, muted, Typeface.BOLD))
+            addView(text(shortCode.ifBlank { "Entrega em andamento" }, 12f, slateMuted, Typeface.BOLD).apply {
+                letterSpacing = 0.08f
+            })
+            addView(space(appContext, 8))
+            addView(text("Você chegou próximo ao destino", 24f, ink, Typeface.BOLD))
+            addView(space(appContext, 12))
+            addView(text("DESTINO", 11f, slateMuted, Typeface.BOLD))
             addView(space(appContext, 4))
-            addView(text(destination.ifBlank { "Destino da entrega" }, 15f, ink, Typeface.NORMAL))
+            addView(text(destination.ifBlank { "Destino da entrega" }, 22f, ink, Typeface.BOLD))
+            addView(space(appContext, 8))
+            addView(text("Confirme a chegada e volte ao ItaSuper para concluir a entrega com o PIN do cliente.", 14f, muted))
         }
 
         val keepNavigation = Button(appContext).apply {
@@ -88,7 +113,7 @@ object DeliveryArrivalOverlay {
             isAllCaps = false
             setTextColor(ink)
             setTypeface(typeface, Typeface.BOLD)
-            background = rounded(Color.rgb(241, 245, 249), dp(appContext, 16))
+            background = rounded(slatePillBg, dp(appContext, 18))
             setOnClickListener { dismiss() }
         }
         val returnToApp = Button(appContext).apply {
@@ -97,7 +122,7 @@ object DeliveryArrivalOverlay {
             isAllCaps = false
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
-            background = rounded(orange, dp(appContext, 16))
+            background = rounded(orange, dp(appContext, 18))
             setOnClickListener {
                 val launch = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
                     ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -110,33 +135,29 @@ object DeliveryArrivalOverlay {
             addView(keepNavigation, LinearLayout.LayoutParams(0, dp(appContext, 58), 1f).apply { marginEnd = dp(appContext, 10) })
             addView(returnToApp, LinearLayout.LayoutParams(0, dp(appContext, 58), 1.35f))
         }
+        details.addView(space(appContext, 16))
+        details.addView(actions, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 58)))
 
+        // Fundo transparente e raiz não-clicável: só o cartão ocupa a
+        // atenção; o mapa atrás segue visível e tocável fora do cartão.
         val root = LinearLayout(appContext).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(appContext, 24), dp(appContext, 26), dp(appContext, 24), dp(appContext, 28))
-            background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                intArrayOf(ink, Color.rgb(31, 41, 55))
-            )
-            isClickable = true
-            addView(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 44)))
-            addView(space(appContext, 52))
-            addView(arrivalBadge, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(appContext, 36)))
-            addView(space(appContext, 20))
+            setPadding(dp(appContext, 16), dp(appContext, 8), dp(appContext, 16), dp(appContext, 16))
+            isClickable = false
+            addView(mapNoteRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(space(appContext, 12))
             addView(details, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(View(appContext), LinearLayout.LayoutParams(1, 0, 1f))
-            addView(actions, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 58)))
         }
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             type,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.CENTER
+            gravity = Gravity.BOTTOM
             setTitle("ItaSuperDeliveryArrival")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
@@ -160,6 +181,13 @@ object DeliveryArrivalOverlay {
         setColor(color)
         cornerRadius = radius.toFloat()
     }
+
+    private fun bordered(color: Int, radius: Int, strokeColor: Int, strokeWidth: Int) =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radius.toFloat()
+            setStroke(strokeWidth, strokeColor)
+        }
 
     private fun space(context: Context, height: Int) = View(context).apply {
         layoutParams = LinearLayout.LayoutParams(1, dp(context, height))
