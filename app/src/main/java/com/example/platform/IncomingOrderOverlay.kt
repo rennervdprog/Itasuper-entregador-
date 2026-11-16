@@ -83,7 +83,7 @@ object IncomingOrderOverlay {
         val slate = Color.rgb(51, 65, 85)
         val slateMuted = Color.rgb(100, 116, 139)
         val surface = Color.rgb(255, 255, 255)
-        val background = Color.rgb(250, 250, 250)
+        val backgroundColor = Color.rgb(250, 250, 250)
         val lineGray = Color.rgb(226, 232, 240)
         val slatePillBg = Color.rgb(226, 232, 240)
         val green = Color.rgb(16, 185, 129)
@@ -306,7 +306,7 @@ object IncomingOrderOverlay {
         val root = LinearLayout(appContext).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(appContext, 24), dp(appContext, 26), dp(appContext, 24), dp(appContext, 28))
-            setBackgroundColor(background)
+            setBackgroundColor(backgroundColor)
             isClickable = true
             addView(topRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(appContext, 44)))
             addView(space(appContext, 22))
